@@ -12,7 +12,7 @@ using Xunit;
 
 namespace Asynkron.OtelReceiver.Tests;
 
-[Collection("SearchFilterIntegration")]
+[Collection("GrpcIntegration")]
 public class SearchFilterTests
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(120);

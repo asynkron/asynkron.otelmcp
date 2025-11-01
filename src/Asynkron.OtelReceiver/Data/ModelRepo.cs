@@ -88,6 +88,32 @@ public class ModelRepo(
                 if (SeenAttributes.Add(spanAttrib)) attributeLookups.Add(spanAttrib);
             }
 
+            // Also store resource attributes
+            if (s.Resource is not null)
+            {
+                foreach (var a in s.Resource.Attributes)
+                {
+                    if (BlockedAttributes.Contains(a.Key)) continue;
+
+                    var attributeValue = a.Value.ToStringValue();
+
+                    spanAttributeRows.Add(new SpanAttributeValueEntity
+                    {
+                        SpanId = span.SpanId,
+                        Key = a.Key,
+                        Value = attributeValue,
+                        Source = SpanAttributeSource.Resource
+                    });
+
+                    var spanAttrib = new SpanAttributeEntity
+                    {
+                        Key = a.Key,
+                        Value = attributeValue
+                    };
+                    if (SeenAttributes.Add(spanAttrib)) attributeLookups.Add(spanAttrib);
+                }
+            }
+
             var spanName = new SpanNameEntity
             {
                 ServiceName = s.ServiceName,
@@ -948,12 +974,27 @@ public class ModelRepo(
         var operation = NormalizeAttributeFilterOperator(filter);
         var key = filter.Key;
         var value = filter.Value;
+        var isResourceFilter = filter.Target == AttributeFilterTarget.Resource;
 
-        return operation == AttributeFilterOperator.Equals
+        if (operation == AttributeFilterOperator.Equals)
+        {
+            return isResourceFilter
+                ? query.Where(span => attributes.Any(attribute =>
+                    attribute.SpanId == span.SpanId &&
+                    attribute.Key == key &&
+                    attribute.Value == value &&
+                    attribute.Source == SpanAttributeSource.Resource))
+                : query.Where(span => attributes.Any(attribute =>
+                    attribute.SpanId == span.SpanId &&
+                    attribute.Key == key &&
+                    attribute.Value == value));
+        }
+
+        return isResourceFilter
             ? query.Where(span => attributes.Any(attribute =>
                 attribute.SpanId == span.SpanId &&
                 attribute.Key == key &&
-                attribute.Value == value))
+                attribute.Source == SpanAttributeSource.Resource))
             : query.Where(span => attributes.Any(attribute =>
                 attribute.SpanId == span.SpanId &&
                 attribute.Key == key));
@@ -1001,6 +1042,10 @@ public class ModelRepo(
                 EvaluateErrorFilter(expression.Error, traceContext),
             TraceFilterExpression.ExpressionOneofCase.Duration =>
                 EvaluateDurationFilter(expression.Duration, traceContext),
+            TraceFilterExpression.ExpressionOneofCase.SpanKind =>
+                EvaluateSpanKindFilter(expression.SpanKind, traceContext),
+            TraceFilterExpression.ExpressionOneofCase.TraceDuration =>
+                EvaluateTraceDurationFilter(expression.TraceDuration, traceContext),
             TraceFilterExpression.ExpressionOneofCase.Composite =>
                 EvaluateCompositeFilter(expression.Composite, traceContext, clauseMap),
             _ => true
@@ -1054,6 +1099,85 @@ public class ModelRepo(
         }
 
         return false;
+    }
+
+    // Span kind filters match traces containing at least one span of the specified kind.
+    private static bool EvaluateSpanKindFilter(SpanKindFilter filter, TraceContext traceContext)
+    {
+        if (filter is null || filter.Kind == SpanKindFilter.Types.SpanKind.Unspecified)
+        {
+            return true;
+        }
+
+        // Map proto SpanKind enum values to OpenTelemetry SpanKind enum values
+        var targetKind = filter.Kind switch
+        {
+            SpanKindFilter.Types.SpanKind.Internal => OpenTelemetry.Proto.Trace.V1.Span.Types.SpanKind.Internal,
+            SpanKindFilter.Types.SpanKind.Server => OpenTelemetry.Proto.Trace.V1.Span.Types.SpanKind.Server,
+            SpanKindFilter.Types.SpanKind.Client => OpenTelemetry.Proto.Trace.V1.Span.Types.SpanKind.Client,
+            SpanKindFilter.Types.SpanKind.Producer => OpenTelemetry.Proto.Trace.V1.Span.Types.SpanKind.Producer,
+            SpanKindFilter.Types.SpanKind.Consumer => OpenTelemetry.Proto.Trace.V1.Span.Types.SpanKind.Consumer,
+            _ => OpenTelemetry.Proto.Trace.V1.Span.Types.SpanKind.Unspecified
+        };
+
+        foreach (var span in traceContext.Spans)
+        {
+            if (span.Proto is null || span.Proto.Length == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                var stored = SpanWithService.Parser.ParseFrom(span.Proto);
+                if (stored.Span is not null && stored.Span.Kind == targetKind)
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                // Skip spans with invalid proto data
+                continue;
+            }
+        }
+
+        return false;
+    }
+
+    // Trace duration filters operate on the full trace duration (earliest start to latest end).
+    private static bool EvaluateTraceDurationFilter(TraceDurationFilter filter, TraceContext traceContext)
+    {
+        if (filter is null)
+        {
+            return false;
+        }
+
+        if (filter.MinNanos == 0 && filter.MaxNanos == 0)
+        {
+            return true;
+        }
+
+        if (traceContext.Spans.Count == 0)
+        {
+            return false;
+        }
+
+        var minStart = traceContext.Spans.Min(span => span.StartTimestamp);
+        var maxEnd = traceContext.Spans.Max(span => span.EndTimestamp);
+        var traceDuration = (ulong)(maxEnd - minStart);
+
+        if (filter.MinNanos > 0 && traceDuration < filter.MinNanos)
+        {
+            return false;
+        }
+
+        if (filter.MaxNanos > 0 && traceDuration > filter.MaxNanos)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static bool EvaluateCompositeFilter(
@@ -1118,9 +1242,12 @@ public class ModelRepo(
             return false;
         }
 
-        var target = filter.Target == AttributeFilterTarget.Log
-            ? AttributeFilterTarget.Log
-            : AttributeFilterTarget.Span;
+        var target = filter.Target switch
+        {
+            AttributeFilterTarget.Log => AttributeFilterTarget.Log,
+            AttributeFilterTarget.Resource => AttributeFilterTarget.Resource,
+            _ => AttributeFilterTarget.Span
+        };
 
         var operation = NormalizeAttributeFilterOperator(filter);
 
@@ -1140,9 +1267,12 @@ public class ModelRepo(
             clauseMap[clauseKey] = clause;
         }
 
-        var matches = target == AttributeFilterTarget.Log
-            ? EvaluateLogAttributeMatches(traceContext.Logs, filter.Key!, filter.Value, operation)
-            : EvaluateSpanAttributeMatches(traceContext, filter.Key!, filter.Value, operation);
+        var matches = target switch
+        {
+            AttributeFilterTarget.Log => EvaluateLogAttributeMatches(traceContext.Logs, filter.Key!, filter.Value, operation),
+            AttributeFilterTarget.Resource => EvaluateResourceAttributeMatches(traceContext, filter.Key!, filter.Value, operation),
+            _ => EvaluateSpanAttributeMatches(traceContext, filter.Key!, filter.Value, operation)
+        };
 
         if (matches.Count > 0)
         {
@@ -1333,13 +1463,92 @@ public class ModelRepo(
         return matches;
     }
 
+    private static List<AttributeMatch> EvaluateResourceAttributeMatches(
+        TraceContext traceContext,
+        string key,
+        string? value,
+        AttributeFilterOperator operation)
+    {
+        var matches = new List<AttributeMatch>();
+
+        if (traceContext.SpanAttributes is null || traceContext.SpanAttributes.Count == 0)
+        {
+            return matches;
+        }
+
+        foreach (var span in traceContext.Spans)
+        {
+            if (!traceContext.SpanAttributes.TryGetValue(span.SpanId, out var attributes) || attributes.Count == 0)
+            {
+                continue;
+            }
+
+            if (operation == AttributeFilterOperator.Equals)
+            {
+                foreach (var attribute in attributes)
+                {
+                    if (attribute.Source != SpanAttributeSource.Resource)
+                    {
+                        continue;
+                    }
+
+                    if (!string.Equals(attribute.Key, key, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    if (!string.Equals(attribute.Value, value, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    matches.Add(new AttributeMatch
+                    {
+                        SpanId = span.SpanId,
+                        Key = key,
+                        Value = value ?? string.Empty
+                    });
+                }
+            }
+            else
+            {
+                foreach (var attribute in attributes)
+                {
+                    if (attribute.Source != SpanAttributeSource.Resource)
+                    {
+                        continue;
+                    }
+
+                    if (!string.Equals(attribute.Key, key, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    matches.Add(new AttributeMatch
+                    {
+                        SpanId = span.SpanId,
+                        Key = key,
+                        Value = attribute.Value ?? string.Empty
+                    });
+                }
+            }
+        }
+
+        return matches;
+    }
+
     private static string BuildClauseKey(
         string key,
         string? value,
         AttributeFilterTarget target,
         AttributeFilterOperator operation)
     {
-        var prefix = target == AttributeFilterTarget.Log ? "log" : "tag";
+        var prefix = target switch
+        {
+            AttributeFilterTarget.Log => "log",
+            AttributeFilterTarget.Resource => "resource",
+            _ => "tag"
+        };
 
         if (operation == AttributeFilterOperator.Equals && !string.IsNullOrEmpty(value))
         {

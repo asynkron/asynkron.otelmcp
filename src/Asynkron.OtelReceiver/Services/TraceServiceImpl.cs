@@ -75,7 +75,8 @@ public class TraceServiceImpl : TraceService.TraceServiceBase
                         select new SpanWithService
                         {
                             ServiceName = serviceName,
-                            Span = span
+                            Span = span,
+                            Resource = resourceSpan.Resource
                         }
                     ).ToList();
 

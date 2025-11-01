@@ -5,10 +5,12 @@ package tracelens.proto.v1;
 import "opentelemetry/proto/trace/v1/trace.proto";
 import "opentelemetry/proto/logs/v1/logs.proto";
 import "opentelemetry/proto/metrics/v1/metrics.proto";
+import "opentelemetry/proto/resource/v1/resource.proto";
 
 message SpanWithService {
   opentelemetry.proto.trace.v1.Span span = 1;
   string service_name = 2;
+  opentelemetry.proto.resource.v1.Resource resource = 3;
 }
 
 message GetSearchDataRequest {
@@ -52,6 +54,8 @@ message TraceFilterExpression {
     SpanNameFilter span_name = 4;
     ErrorFilter error = 5;
     DurationFilter duration = 6;
+    SpanKindFilter span_kind = 7;
+    TraceDurationFilter trace_duration = 8;
   }
 }
 
@@ -83,6 +87,7 @@ enum AttributeFilterTarget {
   ATTRIBUTE_FILTER_TARGET_UNSPECIFIED = 0;
   ATTRIBUTE_FILTER_TARGET_SPAN = 1;
   ATTRIBUTE_FILTER_TARGET_LOG = 2;
+  ATTRIBUTE_FILTER_TARGET_RESOURCE = 3;
 }
 
 message ServiceFilter {
@@ -108,6 +113,28 @@ message ErrorFilter {
 
 // Constrains trace search by span duration (nanos). Zero values indicate "no bound".
 message DurationFilter {
+  uint64 min_nanos = 1;
+  uint64 max_nanos = 2;
+}
+
+// Filters traces by span kind (CLIENT, SERVER, INTERNAL, PRODUCER, CONSUMER).
+// Matches traces containing at least one span of the specified kind.
+message SpanKindFilter {
+  enum SpanKind {
+    SPAN_KIND_UNSPECIFIED = 0;
+    SPAN_KIND_INTERNAL = 1;
+    SPAN_KIND_SERVER = 2;
+    SPAN_KIND_CLIENT = 3;
+    SPAN_KIND_PRODUCER = 4;
+    SPAN_KIND_CONSUMER = 5;
+  }
+  
+  SpanKind kind = 1;
+}
+
+// Filters traces by total trace duration (from earliest span start to latest span end).
+// Unlike DurationFilter which operates on individual spans, this filters by end-to-end trace time.
+message TraceDurationFilter {
   uint64 min_nanos = 1;
   uint64 max_nanos = 2;
 }

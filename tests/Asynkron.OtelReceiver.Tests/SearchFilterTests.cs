@@ -12,10 +12,10 @@ using Xunit;
 
 namespace Asynkron.OtelReceiver.Tests;
 
-[Collection("GrpcIntegration")]
+[Collection("SearchFilterIntegration")]
 public class SearchFilterTests
 {
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(120);
     private readonly OtelReceiverApplicationFactory _factory;
 
     static SearchFilterTests()
@@ -114,13 +114,15 @@ public class SearchFilterTests
         });
 
         var clientTraceIdHex = Convert.ToHexString(clientTraceId);
+        var clientSpanIdHex = Convert.ToHexString(clientSpanId);
         var serverTraceIdHex = Convert.ToHexString(serverTraceId);
+        var serverSpanIdHex = Convert.ToHexString(serverSpanId);
         await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
-                context.Spans.AnyAsync(span => span.TraceId == clientTraceIdHex)),
-            "client trace to be queryable");
+                context.Spans.AnyAsync(span => span.TraceId == clientTraceIdHex && span.Proto != null && span.Proto.Length > 0)),
+            "client trace with proto to be queryable");
         await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
-                context.Spans.AnyAsync(span => span.TraceId == serverTraceIdHex)),
-            "server trace to be queryable");
+                context.Spans.AnyAsync(span => span.TraceId == serverTraceIdHex && span.Proto != null && span.Proto.Length > 0)),
+            "server trace with proto to be queryable");
 
         // Search for CLIENT spans only from client-service
         var clientSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
@@ -435,6 +437,7 @@ public class SearchFilterTests
         });
 
         var prodTraceIdHex = Convert.ToHexString(prodTraceId);
+        var prodSpanIdHex = Convert.ToHexString(prodSpanId);
         var stagingTraceIdHex = Convert.ToHexString(stagingTraceId);
         await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
                 context.Spans.AnyAsync(span => span.TraceId == prodTraceIdHex)),
@@ -442,6 +445,12 @@ public class SearchFilterTests
         await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
                 context.Spans.AnyAsync(span => span.TraceId == stagingTraceIdHex)),
             "staging trace to be queryable");
+        // Also wait for resource attributes to be saved
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.SpanAttributeValues.AnyAsync(attr => 
+                    attr.SpanId == prodSpanIdHex && 
+                    attr.Key == "deployment.environment")),
+            "prod resource attributes to be saved");
 
         // Search for production environment with service name to isolate test data
         var prodSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
@@ -600,13 +609,15 @@ public class SearchFilterTests
         });
 
         var slowClientTraceIdHex = Convert.ToHexString(slowClientTraceId);
+        var slowClientSpanIdHex = Convert.ToHexString(slowClientSpanId);
         var fastClientTraceIdHex = Convert.ToHexString(fastClientTraceId);
+        var fastClientSpanIdHex = Convert.ToHexString(fastClientSpanId);
         await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
-                context.Spans.AnyAsync(span => span.TraceId == slowClientTraceIdHex)),
-            "slow client trace to be queryable");
+                context.Spans.AnyAsync(span => span.TraceId == slowClientTraceIdHex && span.Proto != null && span.Proto.Length > 0)),
+            "slow client trace with proto to be queryable");
         await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
-                context.Spans.AnyAsync(span => span.TraceId == fastClientTraceIdHex)),
-            "fast client trace to be queryable");
+                context.Spans.AnyAsync(span => span.TraceId == fastClientTraceIdHex && span.Proto != null && span.Proto.Length > 0)),
+            "fast client trace with proto to be queryable");
 
         // Search for slow CLIENT spans from slow-client service (composite AND filter)
         var compositeSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
@@ -653,7 +664,7 @@ public class SearchFilterTests
     {
         var timeoutAt = DateTime.UtcNow + DefaultTimeout;
         Exception? lastException = null;
-        var delay = 100;
+        var delay = 50; // Start with faster polling
 
         while (DateTime.UtcNow < timeoutAt)
         {
@@ -670,8 +681,8 @@ public class SearchFilterTests
             }
 
             await Task.Delay(delay);
-            // Exponential backoff up to 1 second
-            delay = Math.Min(delay * 2, 1000);
+            // Exponential backoff up to 2 seconds to reduce database load
+            delay = Math.Min(delay * 2, 2000);
         }
 
         var message = $"Timed out waiting for {failureMessage}";

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Google.Protobuf;
+using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Proto.Collector.Trace.V1;
 using OpenTelemetry.Proto.Common.V1;
 using OpenTelemetry.Proto.Resource.V1;
@@ -14,6 +15,7 @@ namespace Asynkron.OtelReceiver.Tests;
 [Collection("GrpcIntegration")]
 public class SearchFilterTests
 {
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
     private readonly OtelReceiverApplicationFactory _factory;
 
     static SearchFilterTests()
@@ -111,7 +113,14 @@ public class SearchFilterTests
             }
         });
 
-        await Task.Delay(1000);
+        var clientTraceIdHex = Convert.ToHexString(clientTraceId);
+        var serverTraceIdHex = Convert.ToHexString(serverTraceId);
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == clientTraceIdHex)),
+            "client trace to be queryable");
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == serverTraceIdHex)),
+            "server trace to be queryable");
 
         // Search for CLIENT spans only from client-service
         var clientSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
@@ -263,7 +272,14 @@ public class SearchFilterTests
             }
         });
 
-        await Task.Delay(1000);
+        var fastTraceIdHex = Convert.ToHexString(fastTraceId);
+        var slowTraceIdHex = Convert.ToHexString(slowTraceId);
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == fastTraceIdHex)),
+            "fast trace to be queryable");
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == slowTraceIdHex)),
+            "slow trace to be queryable");
 
         // Search for traces longer than 50ms from slow-service
         var slowSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
@@ -418,43 +434,84 @@ public class SearchFilterTests
             }
         });
 
-        await Task.Delay(1000);
+        var prodTraceIdHex = Convert.ToHexString(prodTraceId);
+        var stagingTraceIdHex = Convert.ToHexString(stagingTraceId);
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == prodTraceIdHex)),
+            "prod trace to be queryable");
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == stagingTraceIdHex)),
+            "staging trace to be queryable");
 
-        // Search for production environment
+        // Search for production environment with service name to isolate test data
         var prodSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
         {
             Filter = new TraceFilterExpression
             {
-                Attribute = new AttributeFilter
+                Composite = new TraceFilterComposite
                 {
-                    Key = "deployment.environment",
-                    Value = "production",
-                    Target = AttributeFilterTarget.Resource
+                    Operator = TraceFilterComposite.Types.Operator.And,
+                    Expressions =
+                    {
+                        new TraceFilterExpression
+                        {
+                            Service = new ServiceFilter
+                            {
+                                Name = "prod-service"
+                            }
+                        },
+                        new TraceFilterExpression
+                        {
+                            Attribute = new AttributeFilter
+                            {
+                                Key = "deployment.environment",
+                                Value = "production",
+                                Target = AttributeFilterTarget.Resource
+                            }
+                        }
+                    }
                 }
             },
             Limit = 10
         });
 
         Assert.Single(prodSearch.Results);
-        Assert.Contains(prodSearch.Results, r => r.Trace.Spans.Any(s => s.ServiceName == "prod-service"));
+        Assert.All(prodSearch.Results, r => Assert.Contains(r.Trace.Spans, s => s.ServiceName == "prod-service"));
 
-        // Search for traces with host.name resource attribute (exists check)
+        // Search for traces with host.name resource attribute (exists check) from prod-service
         var hostSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
         {
             Filter = new TraceFilterExpression
             {
-                Attribute = new AttributeFilter
+                Composite = new TraceFilterComposite
                 {
-                    Key = "host.name",
-                    Target = AttributeFilterTarget.Resource,
-                    Operator = AttributeFilterOperator.Exists
+                    Operator = TraceFilterComposite.Types.Operator.And,
+                    Expressions =
+                    {
+                        new TraceFilterExpression
+                        {
+                            Service = new ServiceFilter
+                            {
+                                Name = "prod-service"
+                            }
+                        },
+                        new TraceFilterExpression
+                        {
+                            Attribute = new AttributeFilter
+                            {
+                                Key = "host.name",
+                                Target = AttributeFilterTarget.Resource,
+                                Operator = AttributeFilterOperator.Exists
+                            }
+                        }
+                    }
                 }
             },
             Limit = 10
         });
 
         Assert.Single(hostSearch.Results);
-        Assert.Contains(hostSearch.Results, r => r.Trace.Spans.Any(s => s.ServiceName == "prod-service"));
+        Assert.All(hostSearch.Results, r => Assert.Contains(r.Trace.Spans, s => s.ServiceName == "prod-service"));
     }
 
     [Fact]
@@ -542,7 +599,14 @@ public class SearchFilterTests
             }
         });
 
-        await Task.Delay(1000);
+        var slowClientTraceIdHex = Convert.ToHexString(slowClientTraceId);
+        var fastClientTraceIdHex = Convert.ToHexString(fastClientTraceId);
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == slowClientTraceIdHex)),
+            "slow client trace to be queryable");
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == fastClientTraceIdHex)),
+            "fast client trace to be queryable");
 
         // Search for slow CLIENT spans from slow-client service (composite AND filter)
         var compositeSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
@@ -583,5 +647,39 @@ public class SearchFilterTests
 
         Assert.Single(compositeSearch.Results);
         Assert.All(compositeSearch.Results, r => Assert.Contains(r.Trace.Spans, s => s.ServiceName == "slow-client"));
+    }
+
+    private static async Task WaitForAsync(Func<Task<bool>> predicate, string failureMessage)
+    {
+        var timeoutAt = DateTime.UtcNow + DefaultTimeout;
+        Exception? lastException = null;
+        var delay = 100;
+
+        while (DateTime.UtcNow < timeoutAt)
+        {
+            try
+            {
+                if (await predicate())
+                {
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+            }
+
+            await Task.Delay(delay);
+            // Exponential backoff up to 1 second
+            delay = Math.Min(delay * 2, 1000);
+        }
+
+        var message = $"Timed out waiting for {failureMessage}";
+        if (lastException is not null)
+        {
+            throw new TimeoutException(message, lastException);
+        }
+
+        throw new TimeoutException(message);
     }
 }

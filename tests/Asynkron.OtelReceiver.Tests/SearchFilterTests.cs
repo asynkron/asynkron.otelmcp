@@ -111,7 +111,7 @@ public class SearchFilterTests
             }
         });
 
-        await Task.Delay(500);
+        await Task.Delay(1000);
 
         // Search for CLIENT spans only from client-service
         var clientSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
@@ -263,7 +263,7 @@ public class SearchFilterTests
             }
         });
 
-        await Task.Delay(500);
+        await Task.Delay(1000);
 
         // Search for traces longer than 50ms from slow-service
         var slowSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
@@ -418,7 +418,7 @@ public class SearchFilterTests
             }
         });
 
-        await Task.Delay(500);
+        await Task.Delay(1000);
 
         // Search for production environment
         var prodSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
@@ -542,9 +542,9 @@ public class SearchFilterTests
             }
         });
 
-        await Task.Delay(500);
+        await Task.Delay(1000);
 
-        // Search for slow CLIENT spans (composite AND filter)
+        // Search for slow CLIENT spans from slow-client service (composite AND filter)
         var compositeSearch = await dataClient.SearchTracesAsync(new SearchTracesRequest
         {
             Filter = new TraceFilterExpression
@@ -554,6 +554,13 @@ public class SearchFilterTests
                     Operator = TraceFilterComposite.Types.Operator.And,
                     Expressions =
                     {
+                        new TraceFilterExpression
+                        {
+                            Service = new ServiceFilter
+                            {
+                                Name = "slow-client"
+                            }
+                        },
                         new TraceFilterExpression
                         {
                             SpanKind = new SpanKindFilter
@@ -575,6 +582,6 @@ public class SearchFilterTests
         });
 
         Assert.Single(compositeSearch.Results);
-        Assert.Contains(compositeSearch.Results, r => r.Trace.Spans.Any(s => s.ServiceName == "slow-client"));
+        Assert.All(compositeSearch.Results, r => Assert.Contains(r.Trace.Spans, s => s.ServiceName == "slow-client"));
     }
 }

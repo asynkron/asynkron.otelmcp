@@ -8,5 +8,6 @@ Current entries:
 - [`dotnet-tool.md`](dotnet-tool.md) – installation and usage notes for the `dotnet-otelmcp` global tool, including `--address` and `--metrics-client` guidance.
 - [`tracelens-search.md`](tracelens-search.md) – outlines the composable `SearchTraces` filter expression so API consumers can combine service and attribute predicates with AND/OR logic.
 - [`tracelens-search-response.md`](tracelens-search-response.md) – documents the enriched `SearchTraces` response payload (attribute clause matches and optional span protos) so UI/CLI clients can adopt the new metadata.
+- [`search-capabilities-review.md`](search-capabilities-review.md) – comprehensive review of search capabilities including newly added span kind, resource attribute, and trace duration filters for dashboard use cases.
 
 Add a new document whenever you complete an investigation whose results will be referenced again. Keep filenames descriptive and link to them from parent `context.md` files when relevant.

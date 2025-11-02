@@ -127,6 +127,7 @@ public class MetricEntity
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
+
     public byte[] Proto { get; set; }
     public string[] AttributeMap { get; set; }
     public string Unit { get; set; }
@@ -155,14 +156,14 @@ public class UserSettingsEntity
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
+
     public string Theme { get; set; }
     public byte TimestampType { get; set; }
 }
 
 public class ComponentMetadataEntity
 {
-    [Key]
-    public string NamePath { get; set; } // GroupName:ComponentName
+    [Key] public string NamePath { get; set; } // GroupName:ComponentName
     public string Annotation { get; set; }
 }
 

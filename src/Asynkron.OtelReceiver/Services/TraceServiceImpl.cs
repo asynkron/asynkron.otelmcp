@@ -33,10 +33,7 @@ public class TraceServiceImpl : TraceService.TraceServiceBase
         try
         {
             var spanCount = CountSpans(request);
-            if (spanCount > 0)
-            {
-                _metrics.RecordSpansReceived(spanCount);
-            }
+            if (spanCount > 0) _metrics.RecordSpansReceived(spanCount);
             Interlocked.Increment(ref _count);
             await Channel.Writer.WriteAsync(request);
         }
@@ -92,12 +89,8 @@ public class TraceServiceImpl : TraceService.TraceServiceBase
     {
         long count = 0;
         foreach (var resourceSpan in request.ResourceSpans)
-        {
-            foreach (var scopeSpan in resourceSpan.ScopeSpans)
-            {
-                count += scopeSpan.Spans.Count;
-            }
-        }
+        foreach (var scopeSpan in resourceSpan.ScopeSpans)
+            count += scopeSpan.Spans.Count;
 
         return count;
     }

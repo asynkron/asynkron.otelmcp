@@ -71,14 +71,40 @@ public class ReceiverMetricsCollector : IReceiverMetricsCollector, IDisposable
         _metricsStoredCounter = _meter.CreateCounter<long>("receiver.metrics.stored");
     }
 
-    public void Dispose() => _meter.Dispose();
+    public void Dispose()
+    {
+        _meter.Dispose();
+    }
 
-    public void RecordSpansReceived(long count) => Record(ref _spansReceived, count, _spansReceivedCounter);
-    public void RecordSpansStored(long count) => Record(ref _spansStored, count, _spansStoredCounter);
-    public void RecordLogsReceived(long count) => Record(ref _logsReceived, count, _logsReceivedCounter);
-    public void RecordLogsStored(long count) => Record(ref _logsStored, count, _logsStoredCounter);
-    public void RecordMetricsReceived(long count) => Record(ref _metricsReceived, count, _metricsReceivedCounter);
-    public void RecordMetricsStored(long count) => Record(ref _metricsStored, count, _metricsStoredCounter);
+    public void RecordSpansReceived(long count)
+    {
+        Record(ref _spansReceived, count, _spansReceivedCounter);
+    }
+
+    public void RecordSpansStored(long count)
+    {
+        Record(ref _spansStored, count, _spansStoredCounter);
+    }
+
+    public void RecordLogsReceived(long count)
+    {
+        Record(ref _logsReceived, count, _logsReceivedCounter);
+    }
+
+    public void RecordLogsStored(long count)
+    {
+        Record(ref _logsStored, count, _logsStoredCounter);
+    }
+
+    public void RecordMetricsReceived(long count)
+    {
+        Record(ref _metricsReceived, count, _metricsReceivedCounter);
+    }
+
+    public void RecordMetricsStored(long count)
+    {
+        Record(ref _metricsStored, count, _metricsStoredCounter);
+    }
 
     public async IAsyncEnumerable<ReceiverMetricsSnapshot> WatchAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -98,12 +124,8 @@ public class ReceiverMetricsCollector : IReceiverMetricsCollector, IDisposable
         try
         {
             while (await channel.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                while (channel.Reader.TryRead(out var snapshot))
-                {
-                    yield return snapshot;
-                }
-            }
+            while (channel.Reader.TryRead(out var snapshot))
+                yield return snapshot;
         }
         finally
         {
@@ -113,10 +135,7 @@ public class ReceiverMetricsCollector : IReceiverMetricsCollector, IDisposable
 
     private void Record(ref long field, long count, Counter<long> counter)
     {
-        if (count <= 0)
-        {
-            return;
-        }
+        if (count <= 0) return;
 
         counter.Add(count);
         Interlocked.Add(ref field, count);
@@ -126,17 +145,17 @@ public class ReceiverMetricsCollector : IReceiverMetricsCollector, IDisposable
     private void Broadcast()
     {
         var snapshot = CreateSnapshot();
-        foreach (var subscriber in _subscribers.Values)
-        {
-            subscriber.Writer.TryWrite(snapshot);
-        }
+        foreach (var subscriber in _subscribers.Values) subscriber.Writer.TryWrite(snapshot);
     }
 
-    private ReceiverMetricsSnapshot CreateSnapshot() => new(
-        Interlocked.Read(ref _spansReceived),
-        Interlocked.Read(ref _spansStored),
-        Interlocked.Read(ref _logsReceived),
-        Interlocked.Read(ref _logsStored),
-        Interlocked.Read(ref _metricsReceived),
-        Interlocked.Read(ref _metricsStored));
+    private ReceiverMetricsSnapshot CreateSnapshot()
+    {
+        return new ReceiverMetricsSnapshot(
+            Interlocked.Read(ref _spansReceived),
+            Interlocked.Read(ref _spansStored),
+            Interlocked.Read(ref _logsReceived),
+            Interlocked.Read(ref _logsStored),
+            Interlocked.Read(ref _metricsReceived),
+            Interlocked.Read(ref _metricsStored));
+    }
 }

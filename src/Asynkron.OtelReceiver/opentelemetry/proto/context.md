@@ -1,8 +1,10 @@
 # `opentelemetry/proto` Context
 
-Mirrors the OpenTelemetry Protocol (OTLP) directory structure. Each subfolder exposes versioned `.proto` files consumed by `Grpc.Tools`.
+Mirrors the OpenTelemetry Protocol (OTLP) directory structure. Each subfolder exposes versioned `.proto` files consumed
+by `Grpc.Tools`.
 
 Subdirectories:
+
 - [`collector/context.md`](collector/context.md) – OTLP collector service RPC definitions.
 - [`common/context.md`](common/context.md) – shared attribute/value messages reused across signal types.
 - [`logs/context.md`](logs/context.md) – OTLP log record schemas.

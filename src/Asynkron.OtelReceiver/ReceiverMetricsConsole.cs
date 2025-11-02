@@ -17,10 +17,8 @@ internal static class ReceiverMetricsConsole
         var address = ResolveAddress(args);
 
         if (address.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
             // Allow plaintext HTTP/2 for local development scenarios.
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-        }
 
         using var channel = GrpcChannel.ForAddress(address);
         var client = new ReceiverMetricsService.ReceiverMetricsServiceClient(channel);
@@ -74,9 +72,7 @@ internal static class ReceiverMetricsConsole
         }
 
         if (string.IsNullOrWhiteSpace(address))
-        {
             throw new ArgumentException("A receiver address must be provided via --address.");
-        }
 
         return address;
     }
@@ -102,16 +98,16 @@ internal static class ReceiverMetricsConsole
         table.AddRow("Metrics", Format(snapshot.MetricsReceived), Format(snapshot.MetricsStored));
     }
 
-    private static string Format(long value) => $"[bold cyan]{value:N0}[/]";
+    private static string Format(long value)
+    {
+        return $"[bold cyan]{value:N0}[/]";
+    }
 
     private static async IAsyncEnumerable<ReceiverMetricsUpdate> SubscribeAsync(
         ReceiverMetricsService.ReceiverMetricsServiceClient client,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var call = client.SubscribeMetrics(new Empty(), cancellationToken: cancellationToken);
-        await foreach (var update in call.ResponseStream.ReadAllAsync(cancellationToken))
-        {
-            yield return update;
-        }
+        await foreach (var update in call.ResponseStream.ReadAllAsync(cancellationToken)) yield return update;
     }
 }

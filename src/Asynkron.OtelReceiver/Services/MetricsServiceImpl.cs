@@ -18,9 +18,10 @@ public class MetricsServiceImpl : MetricsService.MetricsServiceBase
         _repo = repo;
         _metrics = metrics;
     }
-    public override async Task<ExportMetricsServiceResponse> Export(ExportMetricsServiceRequest request, ServerCallContext context)
-    {
 
+    public override async Task<ExportMetricsServiceResponse> Export(ExportMetricsServiceRequest request,
+        ServerCallContext context)
+    {
         var metrics = new List<MetricEntity>();
         foreach (var r in request.ResourceMetrics)
         {
@@ -71,7 +72,7 @@ public class MetricsServiceImpl : MetricsService.MetricsServiceBase
                         Unit = m.Unit,
                         StartTimestamp = start,
                         EndTimestamp = end,
-                        AttributeMap = allAttribs.Select(kvp => $"{kvp.Key}:{kvp.Value.ToStringValue()}").ToArray(),
+                        AttributeMap = allAttribs.Select(kvp => $"{kvp.Key}:{kvp.Value.ToStringValue()}").ToArray()
                     };
                     metrics.Add(me);
                 }
@@ -82,10 +83,7 @@ public class MetricsServiceImpl : MetricsService.MetricsServiceBase
         // metrics are not re-processed when multiple ResourceMetrics payloads arrive.
         foreach (var chunk in metrics.Chunk(2000))
             await _repo.SaveMetrics(chunk);
-        if (metrics.Count > 0)
-        {
-            _metrics.RecordMetricsReceived(metrics.Count);
-        }
+        if (metrics.Count > 0) _metrics.RecordMetricsReceived(metrics.Count);
         return new ExportMetricsServiceResponse();
     }
 }

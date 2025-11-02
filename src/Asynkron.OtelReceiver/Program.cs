@@ -10,7 +10,8 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 // instance and print its metrics. We use a simple flag so the tool remains easy to run.
 if (args.Any(a => string.Equals(a, "--metrics-client", StringComparison.OrdinalIgnoreCase)))
 {
-    var filteredArgs = args.Where(a => !string.Equals(a, "--metrics-client", StringComparison.OrdinalIgnoreCase)).ToArray();
+    var filteredArgs = args.Where(a => !string.Equals(a, "--metrics-client", StringComparison.OrdinalIgnoreCase))
+        .ToArray();
     await ReceiverMetricsConsole.RunAsync(filteredArgs);
     return;
 }
@@ -19,10 +20,7 @@ var (applicationArgs, bindingAddress) = ExtractAddressArguments(args);
 
 var builder = WebApplication.CreateBuilder(applicationArgs);
 
-if (!string.IsNullOrWhiteSpace(bindingAddress))
-{
-    builder.WebHost.UseUrls(bindingAddress);
-}
+if (!string.IsNullOrWhiteSpace(bindingAddress)) builder.WebHost.UseUrls(bindingAddress);
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -33,10 +31,7 @@ builder.WebHost.ConfigureKestrel(options =>
 var sqliteConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                              ?? "Data Source=otel.db";
 
-builder.Services.AddDbContextFactory<OtelReceiverContext>(options =>
-{
-    options.UseSqlite(sqliteConnectionString);
-});
+builder.Services.AddDbContextFactory<OtelReceiverContext>(options => { options.UseSqlite(sqliteConnectionString); });
 
 builder.Services.AddScoped<ISpanBulkInserter, SqliteSpanBulkInserter>();
 
@@ -78,10 +73,7 @@ static (string[] RemainingArgs, string? Address) ExtractAddressArguments(string[
         }
         else if (string.Equals(argument, "--address", StringComparison.OrdinalIgnoreCase))
         {
-            if (i + 1 >= sourceArgs.Length)
-            {
-                throw new ArgumentException("The --address option requires a value.");
-            }
+            if (i + 1 >= sourceArgs.Length) throw new ArgumentException("The --address option requires a value.");
 
             address = sourceArgs[i + 1];
             i++; // Skip the value.
@@ -93,9 +85,7 @@ static (string[] RemainingArgs, string? Address) ExtractAddressArguments(string[
     }
 
     if (address is not null && string.IsNullOrWhiteSpace(address))
-    {
         throw new ArgumentException("The --address option requires a non-empty value.");
-    }
 
     return (remainingArgs.ToArray(), address);
 }

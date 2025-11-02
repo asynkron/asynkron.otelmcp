@@ -8,7 +8,8 @@ namespace Asynkron.OtelReceiver.Services;
 /// <summary>
 /// Streams live receiver metrics over gRPC so external clients (such as the CLI host) can visualise the data.
 /// </summary>
-public class ReceiverMetricsServiceImpl(IReceiverMetricsCollector metrics) : ReceiverMetricsService.ReceiverMetricsServiceBase
+public class ReceiverMetricsServiceImpl(IReceiverMetricsCollector metrics)
+    : ReceiverMetricsService.ReceiverMetricsServiceBase
 {
     public override async Task SubscribeMetrics(
         Empty request,

@@ -12,14 +12,9 @@ public class SqliteSpanBulkInserter : ISpanBulkInserter
         CancellationToken cancellationToken = default)
     {
         if (spans.Count > 0)
-        {
             // SQLite does not expose a COPY equivalent, but EF Core can still send the inserts as a single transaction.
             await context.Spans.AddRangeAsync(spans, cancellationToken);
-        }
 
-        if (attributes.Count > 0)
-        {
-            await context.SpanAttributeValues.AddRangeAsync(attributes, cancellationToken);
-        }
+        if (attributes.Count > 0) await context.SpanAttributeValues.AddRangeAsync(attributes, cancellationToken);
     }
 }

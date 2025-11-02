@@ -37,7 +37,15 @@ Because the exporters honor the standard OTLP environment variables, the sample 
 
 ## Step 1 – Launch the Aspire Shop sample with OtelMCP embedded
 
-1. From the repository root, change into the vendored sample's application host:
+1. You can build and run the complete solution from the repository root using the unified solution file:
+
+   ```bash
+   dotnet build Asynkron.OTelMCP.sln
+   ```
+
+   The unified solution (`Asynkron.OTelMCP.sln`) includes both the OtelMCP receiver and all AspireShop projects.
+
+2. Change into the vendored sample's application host:
 
    ```bash
    cd samples/AspireShop/AspireShop.AppHost
@@ -45,7 +53,7 @@ Because the exporters honor the standard OTLP environment variables, the sample 
 
    The `samples` directory mirrors the upstream repository structure so you can pick other Aspire scenarios later if needed.
 
-2. Start the distributed application:
+3. Start the distributed application:
 
    ```bash
    dotnet run

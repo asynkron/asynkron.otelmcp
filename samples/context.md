@@ -5,6 +5,6 @@ Each subdirectory mirrors the upstream repository layout so future updates can b
 
 Current contents:
 
-- [`AspireShop`](AspireShop) – copy of the .NET Aspire Shop distributed application used to simulate traffic across multiple services.
+- [`AspireShop`](AspireShop) – copy of the .NET Aspire Shop distributed application used to simulate traffic across multiple services. The AspireShop.AppHost automatically configures all services to export telemetry to the OtelMCP collector via the `AddOtelMcp()` extension method and `OtelMcpEnvironmentHook` lifecycle hook, which injects OTLP environment variables into all Aspire projects.
 
 When adding another workload, document it here and note the original upstream location for traceability.

@@ -1,7 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using Google.Protobuf;
-using Google.Protobuf.WellKnownTypes;
 using Hocon;
 using Hocon.Json;
 
@@ -10,18 +8,12 @@ namespace TraceLens.Model;
 public class AttributeString
 {
     private static readonly UTF8Encoding Utf8 = new(true, true);
-    private IList<string> _steps = Array.Empty<string>();
 
     public AttributeString(string value, bool magic)
     {
         Value = value;
-        Magic = magic;
         Evaluate();
     }
-
-    public bool Magic { get; }
-
-    public string? ProtoAny { get; set; }
 
     public string? Decoded { get; set; }
 
@@ -39,32 +31,11 @@ public class AttributeString
     private void Evaluate()
     {
         if (Value.Length < 10) return;
-        _steps = new List<string>();
         ParseJson(Value);
         ParseBase64();
-        //ParseProtoAny();
         if (!IsBytes) return;
         Decoded = DecodeBytes();
         if (Decoded != null) ParseJson(Decoded);
-    }
-
-    private void ParseProtoAny()
-    {
-        try
-        {
-            var x = new Any
-            {
-                TypeUrl = "unknown",
-                Value = ByteString.CopyFrom(Bytes)
-            };
-
-            ProtoAny = x.ToString();
-            _steps.Add("Protobuf Any");
-        }
-        catch (Exception)
-        {
-            // ignored
-        }
     }
 
     private string? DecodeBytes()
@@ -72,7 +43,6 @@ public class AttributeString
         try
         {
             var res = Utf8.GetString(Bytes!);
-            _steps.Add("Decoded UTF8");
             return res;
         }
         catch (Exception)
@@ -88,7 +58,6 @@ public class AttributeString
         try
         {
             Bytes = Convert.FromBase64String(value);
-            _steps.Add("Base64");
         }
         catch
         {
@@ -97,17 +66,9 @@ public class AttributeString
 
     public override string ToString()
     {
-        if (ProtoAny != null) return ProtoAny;
-
-
         if (IsJson) return Json!;
         if (IsDecoded) return Decoded!;
         return Value;
-    }
-
-    public IList<string> GetFormat()
-    {
-        return _steps;
     }
 
 
@@ -124,7 +85,6 @@ public class AttributeString
             if (doc.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object)
             {
                 Json = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
-                _steps.Add("JSON");
             }
 
             return;
@@ -141,7 +101,6 @@ public class AttributeString
             if (doc.RootElement.ValueKind is JsonValueKind.Array or JsonValueKind.Object)
             {
                 Json = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
-                _steps.Add("JSON-ish");
             }
         }
         catch

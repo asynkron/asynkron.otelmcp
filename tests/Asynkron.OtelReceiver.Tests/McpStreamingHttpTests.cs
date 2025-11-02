@@ -1,13 +1,7 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Google.Protobuf;
-using Grpc.Net.Client;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Proto.Collector.Logs.V1;
 using OpenTelemetry.Proto.Collector.Trace.V1;

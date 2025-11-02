@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Asynkron.OtelReceiver.Data;
 using Grpc.Core;
 using Tracelens.Proto.V1;

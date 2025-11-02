@@ -1,10 +1,4 @@
-using System;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Asynkron.OtelReceiver;
 using Asynkron.OtelReceiver.Data;
 using Google.Protobuf;
 using Grpc.Core;

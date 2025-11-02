@@ -4,7 +4,6 @@ using Asynkron.OtelReceiver.Data.Providers;
 using Asynkron.OtelReceiver.Monitoring;
 using Asynkron.OtelReceiver.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 // The application can either run the OTLP receiver ASP.NET Core host or attach to an existing

@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Asynkron.OtelReceiver.Monitoring;
 using Asynkron.OtelReceiver.Monitoring.V1;
 using Google.Protobuf.WellKnownTypes;

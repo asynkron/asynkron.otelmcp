@@ -2,7 +2,6 @@ using System.Globalization;
 using Google.Protobuf;
 using OpenTelemetry.Proto.Common.V1;
 using OpenTelemetry.Proto.Trace.V1;
-using TraceLens.Model;
 
 namespace TraceLens.Infra;
 
@@ -18,7 +17,7 @@ public static class Extensions
         return value.ValueCase switch
         {
             AnyValue.ValueOneofCase.None => "",
-            AnyValue.ValueOneofCase.StringValue => new AttributeString(value.StringValue, false),
+            AnyValue.ValueOneofCase.StringValue => value.StringValue,
             AnyValue.ValueOneofCase.IntValue => value.IntValue,
             AnyValue.ValueOneofCase.DoubleValue => value.DoubleValue,
             AnyValue.ValueOneofCase.BoolValue => value.BoolValue,

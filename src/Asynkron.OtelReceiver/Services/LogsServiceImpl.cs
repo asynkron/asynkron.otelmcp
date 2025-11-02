@@ -1,4 +1,3 @@
-using System.Threading;
 using System.Threading.Channels;
 using Grpc.Core;
 using OpenTelemetry.Proto.Collector.Logs.V1;

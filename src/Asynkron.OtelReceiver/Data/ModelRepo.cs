@@ -1,13 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Asynkron.OtelReceiver.Data.Providers;
 using Asynkron.OtelReceiver.Monitoring;
 using Google.Protobuf;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using OpenTelemetry.Proto.Logs.V1;
 using TraceLens.Infra;
 using Tracelens.Proto.V1;

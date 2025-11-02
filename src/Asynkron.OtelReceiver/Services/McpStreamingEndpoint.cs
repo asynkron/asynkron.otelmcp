@@ -1,19 +1,9 @@
-using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Asynkron.OtelReceiver.Data;
 using Google.Protobuf;
-using Google.Protobuf.Reflection;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Logging;
 using Tracelens.Proto.V1;
 
 namespace Asynkron.OtelReceiver.Services;

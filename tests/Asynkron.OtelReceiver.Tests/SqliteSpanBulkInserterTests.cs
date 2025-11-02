@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Threading;
 using Asynkron.OtelReceiver.Data;
 using Asynkron.OtelReceiver.Data.Providers;
 using Asynkron.OtelReceiver.Monitoring;

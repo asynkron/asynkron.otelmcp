@@ -40,14 +40,14 @@ public static class OtelTranslator
                 let span = spanX.Span
                 let tags = GetTags(span)
                 let logs = GetLogs(logLookup, span)
-                select new Model.Span(span.TraceId.ToHex(), span.SpanId.ToHex(), span.ParentSpanId.ToHex(),
+                select new Model.Span(span.SpanId.ToHex(), span.ParentSpanId.ToHex(),
                     spanX.ServiceName,
-                    span.Name, span.StartTimeUnixNano, span.EndTimeUnixNano, tags, logs, span.Kind)
+                    span.Name, span.StartTimeUnixNano, span.EndTimeUnixNano, tags, logs)
             )
             .ToList();
         Console.WriteLine("end translation");
 
-        var model = TraceLensModelDomain.Create(entries, flatten, diagnostics, multiRoot);
+        var model = TraceLensModelDomain.Create(entries, diagnostics);
 
         Console.WriteLine("Model translation {0}",sw.Elapsed);
         return model;

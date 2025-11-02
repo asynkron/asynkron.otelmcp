@@ -29,6 +29,7 @@ internal static class OtelMcpExtensions
             {
                 endpoint.Port = 4317;
                 endpoint.UriScheme = "http";
+                endpoint.Transport = "http2";
             })
             // Force Kestrel to listen on the canonical OTLP gRPC port so Aspire services
             // can discover it via the generated endpoint reference above.

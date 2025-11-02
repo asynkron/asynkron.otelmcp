@@ -74,6 +74,12 @@ public static class Extensions
 
         if (useOtlpExporter)
         {
+            // Configure OTLP exporter for all signals (traces, metrics, logs) using standard
+            // OpenTelemetry environment variables:
+            //   - OTEL_EXPORTER_OTLP_ENDPOINT: Target endpoint URL (e.g., http://localhost:4317)
+            //   - OTEL_EXPORTER_OTLP_PROTOCOL: Transport protocol (grpc or http/protobuf)
+            // These variables are automatically injected by the Aspire AppHost when running
+            // with the embedded OtelMCP collector.
             builder.Services.AddOpenTelemetry().UseOtlpExporter();
         }
 

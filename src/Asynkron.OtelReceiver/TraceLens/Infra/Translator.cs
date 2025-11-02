@@ -83,28 +83,7 @@ public static class OtelTranslator
     {
         var res = attributes.DistinctBy(k => k.Key).ToDictionary(x => x.Key, x => x.Value.ToValue());
 
-        ExtractVirtualAttributes(res);
-
         return res!;
-    }
-
-    private static void ExtractVirtualAttributes(Dictionary<string, object> res)
-    {
-        //extract virtual attributes
-        foreach (var (key, value) in res.ToArray())
-        {
-            if (value is not AttributeString { IsJson: true } a) continue;
-            var more = JsonFlattener.Flatten(a.Json!);
-            {
-                foreach (var m in more)
-                {
-                    var attrValue = m.Value;
-                    if (attrValue is string attrStr) attrValue = new AttributeString(attrStr, true);
-
-                    res.Add(key + "." + m.Path, attrValue!);
-                }
-            }
-        }
     }
     
     private static Dictionary<string, object?> GetTags(Span span)

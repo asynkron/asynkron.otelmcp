@@ -12,22 +12,6 @@ public static class Extensions
         return resourceSpan.Resource.Attributes.First(y => y.Key == "service.name").Value.StringValue;
     }
 
-    public static object ToValue(this AnyValue value)
-    {
-        return value.ValueCase switch
-        {
-            AnyValue.ValueOneofCase.None => "",
-            AnyValue.ValueOneofCase.StringValue => value.StringValue,
-            AnyValue.ValueOneofCase.IntValue => value.IntValue,
-            AnyValue.ValueOneofCase.DoubleValue => value.DoubleValue,
-            AnyValue.ValueOneofCase.BoolValue => value.BoolValue,
-            AnyValue.ValueOneofCase.ArrayValue => value.ArrayValue,
-            AnyValue.ValueOneofCase.KvlistValue => value.KvlistValue,
-            AnyValue.ValueOneofCase.BytesValue => value.BytesValue,
-            _ => throw new ArgumentOutOfRangeException()
-        };
-    }
-
     public static string ToStringValue(this AnyValue value)
     {
         return value.ValueCase switch

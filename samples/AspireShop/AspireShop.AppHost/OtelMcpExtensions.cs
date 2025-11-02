@@ -30,9 +30,11 @@ internal static class OtelMcpExtensions
                 endpoint.Port = 4317;
                 endpoint.UriScheme = "http";
             })
-            // Force Kestrel to listen on the canonical OTLP gRPC port so Aspire services
+            // Force Kestrel to listen on the canonical OTLP gRPC port (4317) so Aspire services
             // can discover it via the generated endpoint reference above.
             .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:4317")
+            // Configure HTTP/2 protocol required for gRPC. The OtelMCP receiver implements the
+            // OpenTelemetry Protocol (OTLP) gRPC services for traces, logs, and metrics.
             .WithEnvironment("ASPNETCORE_Kestrel__EndpointDefaults__Protocols", "Http2")
             // Use SQLite by default so the collector does not require additional infrastructure.
             .WithEnvironment("ConnectionStrings__DefaultConnection", "Data Source=otelmcp.db");

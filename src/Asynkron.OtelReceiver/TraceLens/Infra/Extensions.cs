@@ -51,32 +51,4 @@ public static class Extensions
         var hex = BitConverter.ToString(bytes.ToByteArray()).Replace("-", "");
         return hex;
     }
-    
-    public static ByteString FromHex(this string self)
-    {
-        var bytes = HexStringToByteArray(self);
-        return ByteString.CopyFrom(bytes);
-    }
-    static byte[] HexStringToByteArray(string hex)
-    {
-        if (hex.Length % 2 != 0)
-            throw new ArgumentException("Hex string must have an even number of characters");
-
-        byte[] byteArray = new byte[hex.Length / 2];
-        for (int i = 0; i < hex.Length; i += 2)
-        {
-            byteArray[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
-        }
-        return byteArray;
-    }
-
-    public static DateTimeOffset ToDateTimeOffset(this ulong t)
-    {
-        return DateTimeOffset.FromUnixTimeMilliseconds((long)(t / 1_000_000));
-    }
-
-    public static TimeSpan ToTimeSpan(this ulong nanos)
-    {
-        return TimeSpan.FromTicks((long)(nanos / 100));
-    }
 }

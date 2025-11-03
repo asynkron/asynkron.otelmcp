@@ -336,19 +336,7 @@ public class ModelRepo(
         }
 
         var response = new GetTraceResponse();
-
-        foreach (var span in spans)
-        {
-            var spanProto = SpanWithService.Parser.ParseFrom(span.Proto);
-            response.Spans.Add(spanProto);
-        }
-
-        foreach (var log in logs)
-        {
-            var logRecord = LogRecord.Parser.ParseFrom(log.Proto);
-            response.Logs.Add(logRecord);
-        }
-
+        PopulateTraceResponse(spans, logs, response.Spans, response.Logs);
         return response;
     }
 
@@ -383,20 +371,27 @@ public class ModelRepo(
         var logs = await logsTask;
 
         var response = new GetRandomTraceResponse();
+        PopulateTraceResponse(spans, logs, response.Spans, response.Logs);
+        return response;
+    }
 
+    private static void PopulateTraceResponse(
+        List<SpanEntity> spans,
+        List<LogEntity> logs,
+        Google.Protobuf.Collections.RepeatedField<SpanWithService> spansField,
+        Google.Protobuf.Collections.RepeatedField<LogRecord> logsField)
+    {
         foreach (var span in spans)
         {
             var spanProto = SpanWithService.Parser.ParseFrom(span.Proto);
-            response.Spans.Add(spanProto);
+            spansField.Add(spanProto);
         }
 
         foreach (var log in logs)
         {
             var logRecord = LogRecord.Parser.ParseFrom(log.Proto);
-            response.Logs.Add(logRecord);
+            logsField.Add(logRecord);
         }
-
-        return response;
     }
 
     public async Task<SearchTraceResponse> SearchTraces(SearchTracesRequest request)

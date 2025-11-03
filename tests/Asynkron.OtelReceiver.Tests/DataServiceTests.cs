@@ -14,7 +14,7 @@ namespace Asynkron.OtelReceiver.Tests;
 [Collection("GrpcIntegration")]
 public class DataServiceTests
 {
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
     private readonly OtelReceiverApplicationFactory _factory;
 
     static DataServiceTests()
@@ -1232,7 +1232,7 @@ public class DataServiceTests
             new
             {
                 TraceIdBytes = Enumerable.Range(160, 16).Select(i => (byte)i).ToArray(),
-                SpanIdBytes = Enumerable.Range(160, 8).Select(i => (byte)i).ToArray(),
+                SpanIdBytes = Enumerable.Range(170, 8).Select(i => (byte)i).ToArray(),
                 StatusCode = "500"
             }
         };

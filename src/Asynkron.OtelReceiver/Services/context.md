@@ -18,8 +18,9 @@ This directory contains gRPC service implementations wired into the ASP.NET Core
   protos). The accompanying `tracelens.proto` now includes HTTP bindings so these operations are reachable via JSON transcoding.
 - [`McpStreamingEndpoint.cs`](McpStreamingEndpoint.cs) – provides a Server-Sent Events (SSE) streaming HTTP endpoint that
   mirrors the TraceLens DataService gRPC commands for Model Context Protocol clients. Uses `text/event-stream` content
-  type with standard SSE formatting (data: prefix and double newlines). Logs handshake, request, and response payloads
-  at information level for easier diagnostics.
+  type with standard SSE formatting (data: prefix and double newlines). Conditionally sets the Connection: keep-alive
+  header only for HTTP/1.1 to avoid InvalidOperationException on HTTP/2 and HTTP/3 connections. Logs handshake, request,
+  and response payloads at information level for easier diagnostics.
 
 Supporting infrastructure:
 

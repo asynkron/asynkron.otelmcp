@@ -13,7 +13,7 @@ The OtelMCP receiver implements the OpenTelemetry Protocol (OTLP) gRPC service, 
 The OtelMCP receiver is configured in `samples/AspireShop/AspireShop.AppHost/OtelMcpExtensions.cs` with the following settings:
 
 - **Port**: 4317 (standard OTLP gRPC port)
-- **Protocol**: HTTP/2 (required for gRPC)
+- **Protocol**: HTTP/1.1 and HTTP/2 (HTTP/2 required for gRPC, HTTP/1.1 for HTTP endpoints)
 - **Transport**: gRPC (via Kestrel HTTP/2 endpoint)
 
 Key configuration:
@@ -22,10 +22,11 @@ Key configuration:
 {
     endpoint.Port = 4317;
     endpoint.UriScheme = "http";
+    endpoint.Transport = "http2";
 })
-.WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:4317")
-.WithEnvironment("ASPNETCORE_Kestrel__EndpointDefaults__Protocols", "Http2")
 ```
+
+Note: The HTTP protocol configuration is controlled in `src/Asynkron.OtelReceiver/Program.cs` via `ConfigureKestrel`, which enables both HTTP/1.1 and HTTP/2 to support both gRPC endpoints and standard HTTP endpoints like `/mcp/stream`.
 
 ### 2. Environment Variable Injection
 
@@ -132,7 +133,7 @@ If telemetry is not being received by the OtelMCP receiver:
 
 Common gRPC connection issues:
 
-- **HTTP/2 not enabled**: Ensure Kestrel is configured with `HttpProtocols.Http2`
+- **HTTP/2 not enabled**: Ensure Kestrel is configured with `HttpProtocols.Http1AndHttp2` or `HttpProtocols.Http2`. The receiver is configured to support both protocols to allow gRPC endpoints (HTTP/2) and standard HTTP endpoints (HTTP/1.1) to coexist.
 - **Port conflicts**: Verify port 4317 is not in use by another service
 - **Firewall rules**: Ensure port 4317 is accessible from the application containers
 

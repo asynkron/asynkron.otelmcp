@@ -55,7 +55,12 @@ public static class McpStreamingEndpoint
         context.Response.StatusCode = StatusCodes.Status200OK;
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers.CacheControl = "no-cache";
-        context.Response.Headers.Connection = "keep-alive";
+        
+        // Only set Connection header for HTTP/1.1; HTTP/2+ rejects this header
+        if (context.Request.Protocol == "HTTP/1.1")
+        {
+            context.Response.Headers.Connection = "keep-alive";
+        }
 
         await WriteHandshakeAsync(context.Response, logger, cancellationToken);
 

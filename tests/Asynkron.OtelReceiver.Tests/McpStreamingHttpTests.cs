@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -232,6 +233,78 @@ public class McpStreamingHttpTests
         Assert.Equal(traceIdHex, trace.GetProperty("traceId").GetString());
         Assert.NotEmpty(trace.GetProperty("spans").EnumerateArray());
         Assert.NotEmpty(traceEntry.GetProperty("logs").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task StreamingEndpoint_WorksWithHttp2()
+    {
+        // Arrange: Create an HTTP client configured to use HTTP/2
+        var httpClient = _factory.CreateDefaultClient();
+        httpClient.DefaultRequestVersion = HttpVersion.Version20;
+        httpClient.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+        var commands = new[]
+        {
+            SerializeCommand("1", "getMetricNames", new { })
+        };
+
+        var requestBody = string.Join("\n", commands);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/mcp/stream")
+        {
+            Content = new StringContent(requestBody, Encoding.UTF8, "application/x-ndjson"),
+            Version = HttpVersion.Version20
+        };
+
+        // Act: Send request and read response
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+        
+        // Assert: The request should succeed without throwing InvalidOperationException
+        response.EnsureSuccessStatusCode();
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+
+        // Verify we can read the handshake
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(responseStream, Encoding.UTF8);
+
+        var handshake = await ReadEnvelopeAsync(reader);
+        Assert.Equal("ready", handshake.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task StreamingEndpoint_WorksWithHttp11()
+    {
+        // Arrange: Create an HTTP client configured to use HTTP/1.1
+        var httpClient = _factory.CreateDefaultClient();
+        httpClient.DefaultRequestVersion = HttpVersion.Version11;
+        httpClient.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+        var commands = new[]
+        {
+            SerializeCommand("1", "getMetricNames", new { })
+        };
+
+        var requestBody = string.Join("\n", commands);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/mcp/stream")
+        {
+            Content = new StringContent(requestBody, Encoding.UTF8, "application/x-ndjson"),
+            Version = HttpVersion.Version11
+        };
+
+        // Act: Send request and read response
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+        
+        // Assert: The request should succeed
+        response.EnsureSuccessStatusCode();
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+
+        // Verify we can read the handshake
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(responseStream, Encoding.UTF8);
+
+        var handshake = await ReadEnvelopeAsync(reader);
+        Assert.Equal("ready", handshake.GetProperty("type").GetString());
     }
 
     private static string SerializeCommand(string id, string command, object payload)

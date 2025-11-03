@@ -613,6 +613,9 @@ public class ModelRepo(
         }
     }
 
+    // Applies log attribute filters directly to SQL queries using EF Core query translation.
+    // CompareTo is used for comparison operators as it translates to SQL comparison operators.
+    // SQLite uses binary (ordinal) collation by default, matching the ordinal comparison used in in-memory evaluation.
     private static IQueryable<LogEntity> ApplyLogAttributeFilter(
         IQueryable<LogEntity> query,
         AttributeFilter filter)
@@ -647,6 +650,9 @@ public class ModelRepo(
         };
     }
 
+    // Applies span attribute filters directly to SQL queries using EF Core query translation.
+    // CompareTo is used for comparison operators as it translates to SQL comparison operators.
+    // SQLite uses binary (ordinal) collation by default, matching the ordinal comparison used in in-memory evaluation.
     private static IQueryable<SpanEntity> ApplySpanAttributeFilter(
         IQueryable<SpanEntity> query,
         IQueryable<SpanAttributeValueEntity> attributes,

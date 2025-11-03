@@ -31,6 +31,14 @@ internal static class OtelMcpExtensions
                     e.UriScheme = "http";
                     e.Transport = "http2";
                     // do not set ASPNETCORE_URLS; Aspire will inject a random target port
+                })
+                
+                // OTLP/HTTP on 4318 (HTTP/1.1)
+                .WithEndpoint("otlp-http", e =>
+                {
+                    e.Port = 4318;
+                    e.UriScheme = "http";
+                    e.Transport = "http";
                 });
 
 

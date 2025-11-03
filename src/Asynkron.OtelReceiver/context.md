@@ -4,17 +4,12 @@ This ASP.NET Core gRPC service ingests OTLP telemetry and persists it using Enti
 the global tool `dotnet-otelmcp`, enabling the server to run via `dotnet otelmcp`. Key entry points:
 
 - [`Program.cs`](Program.cs) bootstraps the web host as a standard ASP.NET Core application, wires up the SQLite-backed EF Core factory, registers ingestion
-  services, and ensures migrations are applied at startup. The server now supports both HTTP/1.1 and HTTP/2 protocols, with JSON transcoding enabled to expose
-  gRPC services via RESTful HTTP endpoints. Configuration follows standard ASP.NET Core patterns (environment variables, command-line args, appsettings.json).
+  services, and ensures migrations are applied at startup. Configuration follows standard ASP.NET Core patterns (environment variables, command-line args, appsettings.json).
 - [`ReceiverMetricsConsole.cs`](ReceiverMetricsConsole.cs) provides a Spectre.Console CLI for monitoring receiver metrics via gRPC. This is available as a library component for building custom monitoring tools that connect to the ReceiverMetricsService endpoint.
 - [`appsettings.json`](appsettings.json) holds default connection strings and provider selection.
 - Proto definitions (`tracelens.proto`, `receiver_metrics.proto`) generate gRPC contracts for TraceLens models and
   receiver metrics streaming. `tracelens.proto` now exposes a composable TraceLens search filter tree so clients can
-  combine service, span, attribute, error, and duration predicates. The DataService in `tracelens.proto` includes HTTP
-  annotations using Google API conventions, enabling RESTful access to all TraceLens endpoints (e.g., GET /v1/search/data,
-  POST /v1/search/traces).
-- [`google/api/`](google/api/) contains Google API proto definitions (annotations.proto, http.proto) required for HTTP
-  transcoding. These files are included for proto imports but don't generate code (types are provided by Google.Api.CommonProtos).
+  combine service, span, attribute, error, and duration predicates.
 
 Subsystems are organised into dedicated folders:
 

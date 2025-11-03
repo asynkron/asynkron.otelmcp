@@ -253,60 +253,18 @@ message GetMetricResponse {
 }
 
 service DataService {
-  rpc GetSearchData(GetSearchDataRequest) returns (GetSearchDataResponse) {
-    option (google.api.http) = {
-      get: "/v1/search/data"
-    };
-  }
-  rpc GetValuesForTag(GetValuesForTagRequest) returns (GetValuesForTagResponse) {
-    option (google.api.http) = {
-      get: "/v1/search/tags/{TagName}"
-    };
-  }
-  rpc SearchTraces(SearchTracesRequest) returns (SearchTracesResponse) {
-    option (google.api.http) = {
-      post: "/v1/search/traces"
-      body: "*"
-    };
-  }
+  rpc GetSearchData(GetSearchDataRequest) returns (GetSearchDataResponse) {}
+  rpc GetValuesForTag(GetValuesForTagRequest) returns (GetValuesForTagResponse) {}
+  rpc SearchTraces(SearchTracesRequest) returns (SearchTracesResponse) {}
 
-  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse) {
-    option (google.api.http) = {
-      get: "/v1/snapshots/{id}"
-    };
-  }
-  rpc GetServiceMapComponents(GetServiceMapComponentsRequest) returns (GetServiceMapComponentsResponse) {
-    option (google.api.http) = {
-      get: "/v1/servicemap/components"
-    };
-  }
+  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse) {}
+  rpc GetServiceMapComponents(GetServiceMapComponentsRequest) returns (GetServiceMapComponentsResponse) {}
 
-  rpc GetComponentMetadata(GetComponentMetadataRequest) returns (GetComponentMetadataResponse) {
-    option (google.api.http) = {
-      get: "/v1/components/metadata"
-    };
-  }
-  rpc SetComponentMetadata(SetComponentMetadataRequest) returns (SetComponentMetadataResponse) {
-    option (google.api.http) = {
-      post: "/v1/components/metadata"
-      body: "*"
-    };
-  }
-  rpc GetMetadataForComponent(GetMetadataForComponentRequest) returns (GetMetadataForComponentResponse) {
-    option (google.api.http) = {
-      get: "/v1/components/{component_id}/metadata"
-    };
-  }
+  rpc GetComponentMetadata(GetComponentMetadataRequest) returns (GetComponentMetadataResponse) {}
+  rpc SetComponentMetadata(SetComponentMetadataRequest) returns (SetComponentMetadataResponse) {}
+  rpc GetMetadataForComponent(GetMetadataForComponentRequest) returns (GetMetadataForComponentResponse) {}
   
-  rpc GetMetricNames(GetMetricNamesRequest) returns (GetMetricNamesResponse) {
-    option (google.api.http) = {
-      get: "/v1/metrics/names"
-    };
-  }
-  rpc GetMetric(GetMetricRequest) returns(GetMetricResponse) {
-    option (google.api.http) = {
-      get: "/v1/metrics/{name}"
-    };
-  }
+  rpc GetMetricNames(GetMetricNamesRequest) returns (GetMetricNamesResponse);
+  rpc GetMetric(GetMetricRequest) returns(GetMetricResponse);
 }
 

@@ -336,20 +336,61 @@ public class ModelRepo(
         }
 
         var response = new GetTraceResponse();
+        PopulateTraceResponse(spans, logs, response.Spans, response.Logs);
+        return response;
+    }
 
+    public async Task<GetRandomTraceResponse> GetRandomTrace(GetRandomTraceRequest request)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var randomTraceId = await context.Spans
+            .AsNoTracking()
+            .Select(span => span.TraceId)
+            .FirstOrDefaultAsync();
+
+        if (randomTraceId is null)
+        {
+            return new GetRandomTraceResponse();
+        }
+
+        var spansTask = context.Spans
+            .AsNoTracking()
+            .Where(span => span.TraceId == randomTraceId)
+            .ToListAsync();
+
+        var logsTask = context.Logs
+            .AsNoTracking()
+            .Where(log => log.TraceId == randomTraceId)
+            .ToListAsync();
+
+        await Task.WhenAll(spansTask, logsTask);
+
+        var spans = await spansTask;
+        var logs = await logsTask;
+
+        var response = new GetRandomTraceResponse();
+        PopulateTraceResponse(spans, logs, response.Spans, response.Logs);
+        return response;
+    }
+
+    private static void PopulateTraceResponse(
+        List<SpanEntity> spans,
+        List<LogEntity> logs,
+        Google.Protobuf.Collections.RepeatedField<SpanWithService> spansField,
+        Google.Protobuf.Collections.RepeatedField<LogRecord> logsField)
+    {
         foreach (var span in spans)
         {
             var spanProto = SpanWithService.Parser.ParseFrom(span.Proto);
-            response.Spans.Add(spanProto);
+            spansField.Add(spanProto);
         }
 
         foreach (var log in logs)
         {
             var logRecord = LogRecord.Parser.ParseFrom(log.Proto);
-            response.Logs.Add(logRecord);
+            logsField.Add(logRecord);
         }
-
-        return response;
     }
 
     public async Task<SearchTraceResponse> SearchTraces(SearchTracesRequest request)

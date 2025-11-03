@@ -5,7 +5,7 @@ the global tool `dotnet-otelmcp`, enabling the server to run via `dotnet otelmcp
 
 - [`Program.cs`](Program.cs) bootstraps the web host as a standard ASP.NET Core application, wires up the SQLite-backed EF Core factory, registers ingestion
   services, and ensures migrations are applied at startup. Configuration follows standard ASP.NET Core patterns (environment variables, command-line args, appsettings.json).
-- [`ReceiverMetricsConsole.cs`](ReceiverMetricsConsole.cs) provides a Spectre.Console CLI for monitoring receiver metrics (currently not integrated into main application flow).
+- [`ReceiverMetricsConsole.cs`](ReceiverMetricsConsole.cs) provides a Spectre.Console CLI for monitoring receiver metrics via gRPC. This is available as a library component for building custom monitoring tools that connect to the ReceiverMetricsService endpoint.
 - [`appsettings.json`](appsettings.json) holds default connection strings and provider selection.
 - Proto definitions (`tracelens.proto`, `receiver_metrics.proto`) generate gRPC contracts for TraceLens models and
   receiver metrics streaming. `tracelens.proto` now exposes a composable TraceLens search filter tree so clients can

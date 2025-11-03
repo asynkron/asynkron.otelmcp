@@ -44,6 +44,7 @@ public class LogEntity
 [Index(nameof(Key))]
 [Index(nameof(Value))]
 [Index(nameof(Key), nameof(Value))]
+[Index(nameof(LogId), nameof(Key), nameof(Value))]
 public class LogAttributeEntity
 {
     [Key]
@@ -68,6 +69,7 @@ public enum LogAttributeSource : byte
 [Index(nameof(Key))]
 [Index(nameof(Value))]
 [Index(nameof(Key), nameof(Value))]
+[Index(nameof(SpanId), nameof(Key), nameof(Value))]
 [Table("SpanAttributeValues")]
 public class SpanAttributeValueEntity
 {
@@ -95,6 +97,9 @@ public enum SpanAttributeSource : byte
 [Index(nameof(OperationName))]
 [Index(nameof(StartTimestamp))]
 [Index(nameof(EndTimestamp))]
+[Index(nameof(ServiceName), nameof(StartTimestamp))]
+[Index(nameof(ServiceName), nameof(EndTimestamp))]
+[Index(nameof(TraceId), nameof(StartTimestamp))]
 public class SpanEntity
 {
     [Key] public string SpanId { get; set; }

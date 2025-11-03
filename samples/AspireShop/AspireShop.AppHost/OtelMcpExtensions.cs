@@ -28,7 +28,7 @@ internal static class OtelMcpExtensions
                 .WithEndpoint(OtlpEndpointName, e =>
                 {
                     e.Port = 4317;          // public proxy port
-                    e.UriScheme = "http";
+                    e.UriScheme = "https";
                     e.Transport = "http2";
                     // do not set ASPNETCORE_URLS; Aspire will inject a random target port
                 })

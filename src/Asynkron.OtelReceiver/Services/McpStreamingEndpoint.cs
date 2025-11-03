@@ -34,10 +34,6 @@ public static class McpStreamingEndpoint
                 await repo.GetSearchData(Parse<GetSearchDataRequest>(payload)),
             ["getValuesForTag"] = async (repo, payload) =>
                 await repo.GetValuesForTag(Parse<GetValuesForTagRequest>(payload)),
-
-            ["getComponentMetadata"] = async (repo, _) =>
-                await repo.GetComponentMetadata(),
-
             ["getMetricNames"] = async (repo, _) =>
                 await repo.GetMetricNames(),
             ["getMetric"] = async (repo, payload) => await repo.GetMetric(Parse<GetMetricRequest>(payload))
@@ -253,7 +249,10 @@ public static class McpStreamingEndpoint
                 break;
             case JsonValueKind.Array:
                 writer.WriteStartArray();
-                foreach (var item in element.EnumerateArray()) WriteCamelCase(writer, item);
+                foreach (var item in element.EnumerateArray())
+                {
+                    WriteCamelCase(writer, item);
+                }
 
                 writer.WriteEndArray();
                 break;

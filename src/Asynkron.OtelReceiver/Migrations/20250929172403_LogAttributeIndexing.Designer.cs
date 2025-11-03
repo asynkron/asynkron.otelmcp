@@ -24,20 +24,6 @@ namespace Asynkron.OtelReceiver.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Asynkron.OtelReceiver.Data.ComponentMetadataEntity", b =>
-                {
-                    b.Property<string>("NamePath")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Annotation")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("NamePath");
-
-                    b.ToTable("ComponentMetaData");
-                });
-
             modelBuilder.Entity("Asynkron.OtelReceiver.Data.LogAttributeEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -162,23 +148,6 @@ namespace Asynkron.OtelReceiver.Migrations
                     b.ToTable("Metrics");
                 });
 
-            modelBuilder.Entity("Asynkron.OtelReceiver.Data.SnapshotEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<byte[]>("Proto")
-                        .IsRequired()
-                        .HasColumnType("bytea");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Snapshots");
-                });
-
             modelBuilder.Entity("Asynkron.OtelReceiver.Data.SpanAttributeEntity", b =>
                 {
                     b.Property<string>("Key")
@@ -259,26 +228,6 @@ namespace Asynkron.OtelReceiver.Migrations
                     b.HasKey("ServiceName", "Name");
 
                     b.ToTable("SpanNames");
-                });
-
-            modelBuilder.Entity("Asynkron.OtelReceiver.Data.UserSettingsEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Theme")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<byte>("TimestampType")
-                        .HasColumnType("smallint");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("UserSettings");
                 });
 
             modelBuilder.Entity("Asynkron.OtelReceiver.Data.LogAttributeEntity", b =>

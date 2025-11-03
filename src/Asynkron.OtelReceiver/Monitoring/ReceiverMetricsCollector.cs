@@ -145,7 +145,10 @@ public class ReceiverMetricsCollector : IReceiverMetricsCollector, IDisposable
     private void Broadcast()
     {
         var snapshot = CreateSnapshot();
-        foreach (var subscriber in _subscribers.Values) subscriber.Writer.TryWrite(snapshot);
+        foreach (var subscriber in _subscribers.Values)
+        {
+            subscriber.Writer.TryWrite(snapshot);
+        }
     }
 
     private ReceiverMetricsSnapshot CreateSnapshot()

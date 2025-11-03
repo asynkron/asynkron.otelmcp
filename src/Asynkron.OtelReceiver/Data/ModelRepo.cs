@@ -100,6 +100,7 @@ public class ModelRepo(
 
         logger.LogInformation("Before save attributes");
         foreach (var attrib in attributeLookups)
+        {
             try
             {
                 //insert using raw sql instead
@@ -111,11 +112,13 @@ public class ModelRepo(
             {
                 logger.LogError(x, "Failed to write attributes");
             }
+        }
 
         logger.LogInformation("After save attributes");
 
         logger.LogInformation("Before save span names");
         foreach (var spanName in spanNames)
+        {
             try
             {
                 //insert using raw sql instead
@@ -127,6 +130,7 @@ public class ModelRepo(
             {
                 logger.LogError(x, "Failed to write span names");
             }
+        }
 
         logger.LogInformation("After save span names");
     }
@@ -145,20 +149,24 @@ public class ModelRepo(
             var attributes = new List<LogAttributeEntity>();
 
             foreach (var attribute in l.Attributes)
+            {
                 attributes.Add(new LogAttributeEntity
                 {
                     Key = attribute.Key,
                     Value = attribute.Value.ToStringValue(),
                     Source = LogAttributeSource.Record
                 });
+            }
 
             foreach (var attribute in r.Resource.Attributes)
+            {
                 attributes.Add(new LogAttributeEntity
                 {
                     Key = attribute.Key,
                     Value = attribute.Value.ToStringValue(),
                     Source = LogAttributeSource.Resource
                 });
+            }
 
             var log = new LogEntity
             {
@@ -257,28 +265,7 @@ public class ModelRepo(
 
         return response;
     }
-
-    public async Task<GetComponentMetadataResponse> GetComponentMetadata()
-    {
-        await using var context = await contextFactory.CreateDbContextAsync();
-
-        var metadata = await context.ComponentMetaData
-            .AsNoTracking()
-            .OrderBy(component => component.NamePath)
-            .ToListAsync();
-
-        var response = new GetComponentMetadataResponse();
-        response.ComponentMetadata.AddRange(metadata.Select(component =>
-            new GetComponentMetadataResponse.Types.ComponentMetadata
-            {
-                NamePath = component.NamePath,
-                Annotations = component.Annotation
-            }));
-
-        return response;
-    }
-
-   
+    
     public async Task SaveMetrics(MetricEntity[] chunk)
     {
         await using var context = await contextFactory.CreateDbContextAsync();
@@ -338,7 +325,9 @@ public class ModelRepo(
                 break;
             case TraceFilterExpression.ExpressionOneofCase.Composite:
                 foreach (var child in expression.Composite.Expressions)
+                {
                     CollectFilterHints(child, serviceNames, spanNames);
+                }
 
                 break;
         }
@@ -405,7 +394,9 @@ public class ModelRepo(
 
                 var isOr = composite.Operator == TraceFilterComposite.Types.Operator.Or;
                 foreach (var child in composite.Expressions)
+                {
                     CollectRequiredLogAttributeFilters(child, filters, isRequired && !isOr);
+                }
 
                 break;
         }
@@ -434,7 +425,9 @@ public class ModelRepo(
 
                 var isOr = composite.Operator == TraceFilterComposite.Types.Operator.Or;
                 foreach (var child in composite.Expressions)
+                {
                     CollectRequiredSpanAttributeFilters(child, filters, isRequired && !isOr);
+                }
 
                 break;
         }
@@ -642,6 +635,7 @@ public class ModelRepo(
         var matches = new List<AttributeMatch>();
 
         foreach (var span in traceContext.Spans)
+        {
             if (traceContext.SpanAttributes.TryGetValue(span.SpanId, out var attributes) && attributes.Count > 0)
             {
                 if (operation == AttributeFilterOperator.Equals)
@@ -675,6 +669,7 @@ public class ModelRepo(
             {
                 matches.AddRange(EvaluateSpanAttributeMatchesFromMap(new[] { span }, key, value, operation));
             }
+        }
 
         return matches;
     }

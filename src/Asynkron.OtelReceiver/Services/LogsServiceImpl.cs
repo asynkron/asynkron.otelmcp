@@ -53,7 +53,10 @@ public class LogsServiceImpl : LogsService.LogsServiceBase
                     if (payloads.Count > 0) _metrics.RecordLogsReceived(payloads.Count);
 
 
-                    foreach (var chunk in payloads.Chunk(2000)) await _repo.SaveLogs(chunk);
+                    foreach (var chunk in payloads.Chunk(2000))
+                    {
+                        await _repo.SaveLogs(chunk);
+                    }
                 }
                 catch (Exception x)
                 {

@@ -11,17 +11,9 @@ public class OtelReceiverContext(DbContextOptions<OtelReceiverContext> options) 
     public DbSet<LogEntity> Logs { get; set; }
     public DbSet<LogAttributeEntity> LogAttributes { get; set; }
     public DbSet<SpanEntity> Spans { get; set; }
-
-    public DbSet<UserSettingsEntity> UserSettings { get; set; }
-
     public DbSet<SpanAttributeEntity> SpanAttributes { get; set; }
     public DbSet<SpanAttributeValueEntity> SpanAttributeValues { get; set; }
     public DbSet<SpanNameEntity> SpanNames { get; set; }
-
-    public DbSet<ComponentMetadataEntity> ComponentMetaData { get; set; }
-
-    public DbSet<SnapshotEntity> Snapshots { get; set; }
-
     public DbSet<MetricEntity> Metrics { get; set; }
 }
 
@@ -149,29 +141,4 @@ public record SpanNameEntity
 {
     public string ServiceName { get; set; }
     public string Name { get; set; }
-}
-
-public class UserSettingsEntity
-{
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int Id { get; set; }
-
-    public string Theme { get; set; }
-    public byte TimestampType { get; set; }
-}
-
-public class ComponentMetadataEntity
-{
-    [Key] public string NamePath { get; set; } // GroupName:ComponentName
-    public string Annotation { get; set; }
-}
-
-public class SnapshotEntity
-{
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int Id { get; set; }
-
-    public byte[] Proto { get; set; }
 }

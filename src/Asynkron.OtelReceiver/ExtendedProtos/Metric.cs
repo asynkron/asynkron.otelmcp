@@ -49,8 +49,12 @@ public static class MetricExtensions
     {
         HashSet<string> keys = [];
         foreach (var p in points)
-        foreach (var kvp in p.Attributes)
-            keys.Add(kvp.Key);
+        {
+            foreach (var kvp in p.Attributes)
+            {
+                keys.Add(kvp.Key);
+            }
+        }
 
         return keys.ToArray();
     }

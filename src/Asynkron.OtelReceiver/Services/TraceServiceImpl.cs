@@ -76,7 +76,9 @@ public class TraceServiceImpl : TraceService.TraceServiceBase
                     ).ToList();
 
                     foreach (var chunk in spans.Chunk(2000))
+                    {
                         await _repo.SaveTrace(chunk);
+                    }
                 }
                 catch (Exception x)
                 {
@@ -89,8 +91,12 @@ public class TraceServiceImpl : TraceService.TraceServiceBase
     {
         long count = 0;
         foreach (var resourceSpan in request.ResourceSpans)
-        foreach (var scopeSpan in resourceSpan.ScopeSpans)
-            count += scopeSpan.Spans.Count;
+        {
+            foreach (var scopeSpan in resourceSpan.ScopeSpans)
+            {
+                count += scopeSpan.Spans.Count;
+            }
+        }
 
         return count;
     }

@@ -108,6 +108,9 @@ internal static class ReceiverMetricsConsole
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var call = client.SubscribeMetrics(new Empty(), cancellationToken: cancellationToken);
-        await foreach (var update in call.ResponseStream.ReadAllAsync(cancellationToken)) yield return update;
+        await foreach (var update in call.ResponseStream.ReadAllAsync(cancellationToken))
+        {
+            yield return update;
+        }
     }
 }

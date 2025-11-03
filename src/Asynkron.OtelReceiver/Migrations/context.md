@@ -12,6 +12,11 @@ Entity Framework Core migration history for `OtelReceiverContext` lives here. Us
   capturing resource + record attributes), and ensures span indexes align with the entity annotations.
 - `20250930042101_SpanAttributeNormalization*` – introduces the `SpanAttributeValues` table (with indexes mirroring
   `LogAttributes`) so span filters can be evaluated directly in SQL and enforced by provider-specific bulk insert paths.
+- `20251103172313_OptimizeSearchIndexes*` – adds composite indexes to optimize common search query patterns:
+  `(ServiceName, StartTimestamp)`, `(ServiceName, EndTimestamp)`, and `(TraceId, StartTimestamp)` on the `Spans` table;
+  `(SpanId, Key, Value)` on `SpanAttributeValues`; and `(LogId, Key, Value)` on `LogAttributes`. These indexes enable
+  efficient filtering of traces by service+time ranges and attribute key-value pairs, reducing query execution time for
+  typical SearchTraces operations.
 
 Whenever you adjust the data model, generate a new migration and summarise it here to keep this change log actionable.
 Coordinate with [`../Data/context.md`](../Data/context.md) so both code and schema references stay aligned.

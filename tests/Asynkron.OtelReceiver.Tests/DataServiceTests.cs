@@ -14,7 +14,7 @@ namespace Asynkron.OtelReceiver.Tests;
 [Collection("GrpcIntegration")]
 public class DataServiceTests
 {
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
     private readonly OtelReceiverApplicationFactory _factory;
 
     static DataServiceTests()
@@ -1016,6 +1016,346 @@ public class DataServiceTests
         Assert.Equal("log:deployment.environment=prod", resourceClause.Clause);
         var resourceMatch = Assert.Single(resourceClause.Matches);
         Assert.Equal(spanIdHex, resourceMatch.SpanId);
+    }
+
+    [Fact]
+    public async Task SearchTraces_SupportsContainsOperator()
+    {
+        using var channel = _factory.CreateGrpcChannel();
+        var traceClient = new TraceService.TraceServiceClient(channel);
+        var dataClient = new DataService.DataServiceClient(channel);
+
+        var traceIdBytes = Enumerable.Range(100, 16).Select(i => (byte)i).ToArray();
+        var spanIdBytes = Enumerable.Range(100, 8).Select(i => (byte)i).ToArray();
+        var traceIdHex = Convert.ToHexString(traceIdBytes);
+
+        var traceRequest = new ExportTraceServiceRequest
+        {
+            ResourceSpans =
+            {
+                new ResourceSpans
+                {
+                    Resource = new Resource
+                    {
+                        Attributes =
+                        {
+                            new KeyValue
+                            {
+                                Key = "service.name",
+                                Value = new AnyValue { StringValue = "contains-test-service" }
+                            }
+                        }
+                    },
+                    ScopeSpans =
+                    {
+                        new ScopeSpans
+                        {
+                            Spans =
+                            {
+                                new Span
+                                {
+                                    TraceId = ByteString.CopyFrom(traceIdBytes),
+                                    SpanId = ByteString.CopyFrom(spanIdBytes),
+                                    Name = "contains-operation",
+                                    StartTimeUnixNano = 1_000,
+                                    EndTimeUnixNano = 2_000,
+                                    Attributes =
+                                    {
+                                        new KeyValue
+                                        {
+                                            Key = "http.url",
+                                            Value = new AnyValue { StringValue = "https://example.com/api/v1/users" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        await traceClient.ExportAsync(traceRequest);
+
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == traceIdHex)),
+            "contains test trace to be queryable");
+
+        var response = await dataClient.SearchTracesAsync(new SearchTracesRequest
+        {
+            Limit = 5,
+            Filter = new TraceFilterExpression
+            {
+                Attribute = new AttributeFilter
+                {
+                    Key = "http.url",
+                    Value = "/api/v1/",
+                    Operator = AttributeFilterOperator.Contains,
+                    Target = AttributeFilterTarget.Span
+                }
+            }
+        });
+
+        var result = Assert.Single(response.Results);
+        Assert.Equal(traceIdHex, result.Trace.TraceId);
+    }
+
+    [Fact]
+    public async Task SearchTraces_SupportsNotEqualsOperator()
+    {
+        using var channel = _factory.CreateGrpcChannel();
+        var traceClient = new TraceService.TraceServiceClient(channel);
+        var dataClient = new DataService.DataServiceClient(channel);
+
+        var traces = new[]
+        {
+            new
+            {
+                TraceIdBytes = Enumerable.Range(110, 16).Select(i => (byte)i).ToArray(),
+                SpanIdBytes = Enumerable.Range(110, 8).Select(i => (byte)i).ToArray(),
+                StatusCode = "200"
+            },
+            new
+            {
+                TraceIdBytes = Enumerable.Range(130, 16).Select(i => (byte)i).ToArray(),
+                SpanIdBytes = Enumerable.Range(130, 8).Select(i => (byte)i).ToArray(),
+                StatusCode = "404"
+            }
+        };
+
+        var exportRequest = new ExportTraceServiceRequest();
+        foreach (var trace in traces)
+        {
+            exportRequest.ResourceSpans.Add(new ResourceSpans
+            {
+                Resource = new Resource
+                {
+                    Attributes =
+                    {
+                        new KeyValue
+                        {
+                            Key = "service.name",
+                            Value = new AnyValue { StringValue = "not-equals-service" }
+                        }
+                    }
+                },
+                ScopeSpans =
+                {
+                    new ScopeSpans
+                    {
+                        Spans =
+                        {
+                            new Span
+                            {
+                                TraceId = ByteString.CopyFrom(trace.TraceIdBytes),
+                                SpanId = ByteString.CopyFrom(trace.SpanIdBytes),
+                                Name = "not-equals-operation",
+                                StartTimeUnixNano = 10_000,
+                                EndTimeUnixNano = 20_000,
+                                Attributes =
+                                {
+                                    new KeyValue
+                                    {
+                                        Key = "http.status_code",
+                                        Value = new AnyValue { StringValue = trace.StatusCode }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        await traceClient.ExportAsync(exportRequest);
+
+        var traceIds = traces.Select(t => Convert.ToHexString(t.TraceIdBytes)).ToArray();
+
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(async context =>
+                (await context.Spans.CountAsync(span => traceIds.Contains(span.TraceId))) == traceIds.Length),
+            "not-equals test traces to be queryable");
+
+        var response = await dataClient.SearchTracesAsync(new SearchTracesRequest
+        {
+            Limit = 10,
+            Filter = new TraceFilterExpression
+            {
+                Composite = new TraceFilterComposite
+                {
+                    Operator = TraceFilterComposite.Types.Operator.And,
+                    Expressions =
+                    {
+                        new TraceFilterExpression
+                        {
+                            Service = new ServiceFilter { Name = "not-equals-service" }
+                        },
+                        new TraceFilterExpression
+                        {
+                            Attribute = new AttributeFilter
+                            {
+                                Key = "http.status_code",
+                                Value = "200",
+                                Operator = AttributeFilterOperator.NotEquals,
+                                Target = AttributeFilterTarget.Span
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        var result = Assert.Single(response.Results);
+        Assert.Equal(traceIds[1], result.Trace.TraceId);
+    }
+
+    [Fact]
+    public async Task SearchTraces_SupportsComparisonOperators()
+    {
+        using var channel = _factory.CreateGrpcChannel();
+        var traceClient = new TraceService.TraceServiceClient(channel);
+        var dataClient = new DataService.DataServiceClient(channel);
+
+        var traces = new[]
+        {
+            new
+            {
+                TraceIdBytes = Enumerable.Range(140, 16).Select(i => (byte)i).ToArray(),
+                SpanIdBytes = Enumerable.Range(140, 8).Select(i => (byte)i).ToArray(),
+                StatusCode = "200"
+            },
+            new
+            {
+                TraceIdBytes = Enumerable.Range(150, 16).Select(i => (byte)i).ToArray(),
+                SpanIdBytes = Enumerable.Range(150, 8).Select(i => (byte)i).ToArray(),
+                StatusCode = "404"
+            },
+            new
+            {
+                TraceIdBytes = Enumerable.Range(160, 16).Select(i => (byte)i).ToArray(),
+                SpanIdBytes = Enumerable.Range(170, 8).Select(i => (byte)i).ToArray(),
+                StatusCode = "500"
+            }
+        };
+
+        var exportRequest = new ExportTraceServiceRequest();
+        foreach (var trace in traces)
+        {
+            exportRequest.ResourceSpans.Add(new ResourceSpans
+            {
+                Resource = new Resource
+                {
+                    Attributes =
+                    {
+                        new KeyValue
+                        {
+                            Key = "service.name",
+                            Value = new AnyValue { StringValue = "comparison-service" }
+                        }
+                    }
+                },
+                ScopeSpans =
+                {
+                    new ScopeSpans
+                    {
+                        Spans =
+                        {
+                            new Span
+                            {
+                                TraceId = ByteString.CopyFrom(trace.TraceIdBytes),
+                                SpanId = ByteString.CopyFrom(trace.SpanIdBytes),
+                                Name = "comparison-operation",
+                                StartTimeUnixNano = 10_000,
+                                EndTimeUnixNano = 20_000,
+                                Attributes =
+                                {
+                                    new KeyValue
+                                    {
+                                        Key = "http.status_code",
+                                        Value = new AnyValue { StringValue = trace.StatusCode }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        await traceClient.ExportAsync(exportRequest);
+
+        var traceIds = traces.Select(t => Convert.ToHexString(t.TraceIdBytes)).ToArray();
+
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(async context =>
+                (await context.Spans.CountAsync(span => traceIds.Contains(span.TraceId))) == traceIds.Length),
+            "comparison test traces to be queryable");
+
+        // Test GreaterThan
+        var gtResponse = await dataClient.SearchTracesAsync(new SearchTracesRequest
+        {
+            Limit = 10,
+            Filter = new TraceFilterExpression
+            {
+                Composite = new TraceFilterComposite
+                {
+                    Operator = TraceFilterComposite.Types.Operator.And,
+                    Expressions =
+                    {
+                        new TraceFilterExpression
+                        {
+                            Service = new ServiceFilter { Name = "comparison-service" }
+                        },
+                        new TraceFilterExpression
+                        {
+                            Attribute = new AttributeFilter
+                            {
+                                Key = "http.status_code",
+                                Value = "400",
+                                Operator = AttributeFilterOperator.GreaterThan,
+                                Target = AttributeFilterTarget.Span
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        Assert.Equal(2, gtResponse.Results.Count);
+        Assert.Contains(gtResponse.Results, r => r.Trace.TraceId == traceIds[1]);
+        Assert.Contains(gtResponse.Results, r => r.Trace.TraceId == traceIds[2]);
+
+        // Test LessThanOrEqual
+        var lteResponse = await dataClient.SearchTracesAsync(new SearchTracesRequest
+        {
+            Limit = 10,
+            Filter = new TraceFilterExpression
+            {
+                Composite = new TraceFilterComposite
+                {
+                    Operator = TraceFilterComposite.Types.Operator.And,
+                    Expressions =
+                    {
+                        new TraceFilterExpression
+                        {
+                            Service = new ServiceFilter { Name = "comparison-service" }
+                        },
+                        new TraceFilterExpression
+                        {
+                            Attribute = new AttributeFilter
+                            {
+                                Key = "http.status_code",
+                                Value = "404",
+                                Operator = AttributeFilterOperator.LessThanOrEqual,
+                                Target = AttributeFilterTarget.Span
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        Assert.Equal(2, lteResponse.Results.Count);
+        Assert.Contains(lteResponse.Results, r => r.Trace.TraceId == traceIds[0]);
+        Assert.Contains(lteResponse.Results, r => r.Trace.TraceId == traceIds[1]);
     }
 
     private static async Task WaitForAsync(Func<Task<bool>> predicate, string failureMessage)

@@ -35,7 +35,9 @@ The data layer converts OTLP payloads into persisted records and exposes read/wr
 - `ModelRepo.SearchTraces` accepts the TraceLens filter expression tree (see `tracelens.proto`) and translates
   span-level attribute/service predicates into SQL so composite AND/OR searches are evaluated in the database before
   results are hydrated. Error and duration leaf filters are recognised as well; duration bounds are pushed down to SQL
-  while error checks run alongside the existing in-memory evaluation.
+  while error checks run alongside the existing in-memory evaluation. Attribute filters support multiple operators:
+  `EQUALS`, `EXISTS`, `CONTAINS`, `NOT_EQUALS`, `GREATER_THAN`, `LESS_THAN`, `GREATER_THAN_OR_EQUAL`, and
+  `LESS_THAN_OR_EQUAL`, all of which are pushed to SQL for efficient querying.
 - Read-focused helpers in `ModelRepo` use `AsNoTracking()` so metadata/service-map lookups and search projections avoid
   unnecessary EF Core change tracking overhead.
 

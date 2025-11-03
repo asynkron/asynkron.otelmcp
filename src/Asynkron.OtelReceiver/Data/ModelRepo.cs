@@ -613,6 +613,9 @@ public class ModelRepo(
         }
     }
 
+    // Applies log attribute filters directly to SQL queries using EF Core query translation.
+    // CompareTo is used for comparison operators as it translates to SQL comparison operators.
+    // SQLite uses binary (ordinal) collation by default, matching the ordinal comparison used in in-memory evaluation.
     private static IQueryable<LogEntity> ApplyLogAttributeFilter(
         IQueryable<LogEntity> query,
         AttributeFilter filter)
@@ -620,13 +623,36 @@ public class ModelRepo(
         if (string.IsNullOrWhiteSpace(filter.Key)) return query;
 
         var operation = NormalizeAttributeFilterOperator(filter);
+        var key = filter.Key;
+        var value = filter.Value;
 
-        return operation == AttributeFilterOperator.Equals
-            ? query.Where(log => log.Attributes.Any(attribute =>
-                attribute.Key == filter.Key && attribute.Value == filter.Value))
-            : query.Where(log => log.Attributes.Any(attribute => attribute.Key == filter.Key));
+        return operation switch
+        {
+            AttributeFilterOperator.Equals => query.Where(log => log.Attributes.Any(attribute =>
+                attribute.Key == key && attribute.Value == value)),
+            AttributeFilterOperator.NotEquals => query.Where(log => log.Attributes.Any(attribute =>
+                attribute.Key == key && attribute.Value != value)),
+            AttributeFilterOperator.Contains => query.Where(log => log.Attributes.Any(attribute =>
+                attribute.Key == key && attribute.Value.Contains(value))),
+            AttributeFilterOperator.GreaterThan => query.Where(log => log.Attributes.Any(attribute =>
+                attribute.Key == key &&
+                attribute.Value.CompareTo(value) > 0)),
+            AttributeFilterOperator.LessThan => query.Where(log => log.Attributes.Any(attribute =>
+                attribute.Key == key &&
+                attribute.Value.CompareTo(value) < 0)),
+            AttributeFilterOperator.GreaterThanOrEqual => query.Where(log => log.Attributes.Any(attribute =>
+                attribute.Key == key &&
+                attribute.Value.CompareTo(value) >= 0)),
+            AttributeFilterOperator.LessThanOrEqual => query.Where(log => log.Attributes.Any(attribute =>
+                attribute.Key == key &&
+                attribute.Value.CompareTo(value) <= 0)),
+            _ => query.Where(log => log.Attributes.Any(attribute => attribute.Key == key))
+        };
     }
 
+    // Applies span attribute filters directly to SQL queries using EF Core query translation.
+    // CompareTo is used for comparison operators as it translates to SQL comparison operators.
+    // SQLite uses binary (ordinal) collation by default, matching the ordinal comparison used in in-memory evaluation.
     private static IQueryable<SpanEntity> ApplySpanAttributeFilter(
         IQueryable<SpanEntity> query,
         IQueryable<SpanAttributeValueEntity> attributes,
@@ -638,14 +664,40 @@ public class ModelRepo(
         var key = filter.Key;
         var value = filter.Value;
 
-        return operation == AttributeFilterOperator.Equals
-            ? query.Where(span => attributes.Any(attribute =>
+        return operation switch
+        {
+            AttributeFilterOperator.Equals => query.Where(span => attributes.Any(attribute =>
                 attribute.SpanId == span.SpanId &&
                 attribute.Key == key &&
-                attribute.Value == value))
-            : query.Where(span => attributes.Any(attribute =>
+                attribute.Value == value)),
+            AttributeFilterOperator.NotEquals => query.Where(span => attributes.Any(attribute =>
                 attribute.SpanId == span.SpanId &&
-                attribute.Key == key));
+                attribute.Key == key &&
+                attribute.Value != value)),
+            AttributeFilterOperator.Contains => query.Where(span => attributes.Any(attribute =>
+                attribute.SpanId == span.SpanId &&
+                attribute.Key == key &&
+                attribute.Value.Contains(value))),
+            AttributeFilterOperator.GreaterThan => query.Where(span => attributes.Any(attribute =>
+                attribute.SpanId == span.SpanId &&
+                attribute.Key == key &&
+                attribute.Value.CompareTo(value) > 0)),
+            AttributeFilterOperator.LessThan => query.Where(span => attributes.Any(attribute =>
+                attribute.SpanId == span.SpanId &&
+                attribute.Key == key &&
+                attribute.Value.CompareTo(value) < 0)),
+            AttributeFilterOperator.GreaterThanOrEqual => query.Where(span => attributes.Any(attribute =>
+                attribute.SpanId == span.SpanId &&
+                attribute.Key == key &&
+                attribute.Value.CompareTo(value) >= 0)),
+            AttributeFilterOperator.LessThanOrEqual => query.Where(span => attributes.Any(attribute =>
+                attribute.SpanId == span.SpanId &&
+                attribute.Key == key &&
+                attribute.Value.CompareTo(value) <= 0)),
+            _ => query.Where(span => attributes.Any(attribute =>
+                attribute.SpanId == span.SpanId &&
+                attribute.Key == key))
+        };
     }
 
     private static AttributeFilterOperator NormalizeAttributeFilterOperator(AttributeFilter filter)
@@ -656,6 +708,12 @@ public class ModelRepo(
         {
             AttributeFilterOperator.Equals => AttributeFilterOperator.Equals,
             AttributeFilterOperator.Exists => AttributeFilterOperator.Exists,
+            AttributeFilterOperator.Contains => AttributeFilterOperator.Contains,
+            AttributeFilterOperator.NotEquals => AttributeFilterOperator.NotEquals,
+            AttributeFilterOperator.GreaterThan => AttributeFilterOperator.GreaterThan,
+            AttributeFilterOperator.LessThan => AttributeFilterOperator.LessThan,
+            AttributeFilterOperator.GreaterThanOrEqual => AttributeFilterOperator.GreaterThanOrEqual,
+            AttributeFilterOperator.LessThanOrEqual => AttributeFilterOperator.LessThanOrEqual,
             AttributeFilterOperator.Unspecified => string.IsNullOrEmpty(filter.Value)
                 ? AttributeFilterOperator.Exists
                 : AttributeFilterOperator.Equals,
@@ -818,32 +876,31 @@ public class ModelRepo(
         {
             if (traceContext.SpanAttributes.TryGetValue(span.SpanId, out var attributes) && attributes.Count > 0)
             {
-                if (operation == AttributeFilterOperator.Equals)
-                    foreach (var attribute in attributes)
+                foreach (var attribute in attributes)
+                {
+                    if (!string.Equals(attribute.Key, key, StringComparison.Ordinal)) continue;
+
+                    var match = operation switch
                     {
-                        if (!string.Equals(attribute.Key, key, StringComparison.Ordinal)) continue;
+                        AttributeFilterOperator.Equals => string.Equals(attribute.Value, value, StringComparison.Ordinal),
+                        AttributeFilterOperator.NotEquals => !string.Equals(attribute.Value, value, StringComparison.Ordinal),
+                        AttributeFilterOperator.Contains => attribute.Value?.Contains(value ?? string.Empty, StringComparison.Ordinal) == true,
+                        AttributeFilterOperator.GreaterThan => string.Compare(attribute.Value, value, StringComparison.Ordinal) > 0,
+                        AttributeFilterOperator.LessThan => string.Compare(attribute.Value, value, StringComparison.Ordinal) < 0,
+                        AttributeFilterOperator.GreaterThanOrEqual => string.Compare(attribute.Value, value, StringComparison.Ordinal) >= 0,
+                        AttributeFilterOperator.LessThanOrEqual => string.Compare(attribute.Value, value, StringComparison.Ordinal) <= 0,
+                        _ => true // Exists or unspecified
+                    };
 
-                        if (!string.Equals(attribute.Value, value, StringComparison.Ordinal)) continue;
+                    if (!match) continue;
 
-                        matches.Add(new AttributeMatch
-                        {
-                            SpanId = span.SpanId,
-                            Key = key,
-                            Value = value ?? string.Empty
-                        });
-                    }
-                else
-                    foreach (var attribute in attributes)
+                    matches.Add(new AttributeMatch
                     {
-                        if (!string.Equals(attribute.Key, key, StringComparison.Ordinal)) continue;
-
-                        matches.Add(new AttributeMatch
-                        {
-                            SpanId = span.SpanId,
-                            Key = key,
-                            Value = attribute.Value ?? string.Empty
-                        });
-                    }
+                        SpanId = span.SpanId,
+                        Key = key,
+                        Value = attribute.Value ?? string.Empty
+                    });
+                }
             }
             else
             {
@@ -866,34 +923,34 @@ public class ModelRepo(
         {
             if (span.AttributeMap is not { Length: > 0 }) continue;
 
-            if (operation == AttributeFilterOperator.Equals)
+            foreach (var attribute in span.AttributeMap)
             {
-                var target = $"{key}:{value}";
-                if (span.AttributeMap.Contains(target))
-                    matches.Add(new AttributeMatch
-                    {
-                        SpanId = span.SpanId,
-                        Key = key,
-                        Value = value ?? string.Empty
-                    });
-            }
-            else
-            {
-                foreach (var attribute in span.AttributeMap)
+                if (!attribute.StartsWith($"{key}:", StringComparison.Ordinal)) continue;
+
+                var matchValue = attribute.Length > key.Length + 1
+                    ? attribute[(key.Length + 1)..]
+                    : string.Empty;
+
+                var match = operation switch
                 {
-                    if (!attribute.StartsWith($"{key}:", StringComparison.Ordinal)) continue;
+                    AttributeFilterOperator.Equals => string.Equals(matchValue, value, StringComparison.Ordinal),
+                    AttributeFilterOperator.NotEquals => !string.Equals(matchValue, value, StringComparison.Ordinal),
+                    AttributeFilterOperator.Contains => matchValue.Contains(value ?? string.Empty, StringComparison.Ordinal),
+                    AttributeFilterOperator.GreaterThan => string.Compare(matchValue, value, StringComparison.Ordinal) > 0,
+                    AttributeFilterOperator.LessThan => string.Compare(matchValue, value, StringComparison.Ordinal) < 0,
+                    AttributeFilterOperator.GreaterThanOrEqual => string.Compare(matchValue, value, StringComparison.Ordinal) >= 0,
+                    AttributeFilterOperator.LessThanOrEqual => string.Compare(matchValue, value, StringComparison.Ordinal) <= 0,
+                    _ => true // Exists or unspecified
+                };
 
-                    var matchValue = attribute.Length > key.Length + 1
-                        ? attribute[(key.Length + 1)..]
-                        : string.Empty;
+                if (!match) continue;
 
-                    matches.Add(new AttributeMatch
-                    {
-                        SpanId = span.SpanId,
-                        Key = key,
-                        Value = matchValue
-                    });
-                }
+                matches.Add(new AttributeMatch
+                {
+                    SpanId = span.SpanId,
+                    Key = key,
+                    Value = matchValue
+                });
             }
         }
 
@@ -912,32 +969,31 @@ public class ModelRepo(
         {
             if (log.Attributes is not { Count: > 0 }) continue;
 
-            if (operation == AttributeFilterOperator.Equals)
-                foreach (var attribute in log.Attributes)
+            foreach (var attribute in log.Attributes)
+            {
+                if (!string.Equals(attribute.Key, key, StringComparison.Ordinal)) continue;
+
+                var match = operation switch
                 {
-                    if (!string.Equals(attribute.Key, key, StringComparison.Ordinal)) continue;
+                    AttributeFilterOperator.Equals => string.Equals(attribute.Value, value, StringComparison.Ordinal),
+                    AttributeFilterOperator.NotEquals => !string.Equals(attribute.Value, value, StringComparison.Ordinal),
+                    AttributeFilterOperator.Contains => attribute.Value?.Contains(value ?? string.Empty, StringComparison.Ordinal) == true,
+                    AttributeFilterOperator.GreaterThan => string.Compare(attribute.Value, value, StringComparison.Ordinal) > 0,
+                    AttributeFilterOperator.LessThan => string.Compare(attribute.Value, value, StringComparison.Ordinal) < 0,
+                    AttributeFilterOperator.GreaterThanOrEqual => string.Compare(attribute.Value, value, StringComparison.Ordinal) >= 0,
+                    AttributeFilterOperator.LessThanOrEqual => string.Compare(attribute.Value, value, StringComparison.Ordinal) <= 0,
+                    _ => true // Exists or unspecified
+                };
 
-                    if (!string.Equals(attribute.Value, value, StringComparison.Ordinal)) continue;
+                if (!match) continue;
 
-                    matches.Add(new AttributeMatch
-                    {
-                        SpanId = log.SpanId,
-                        Key = key,
-                        Value = value ?? string.Empty
-                    });
-                }
-            else
-                foreach (var attribute in log.Attributes)
+                matches.Add(new AttributeMatch
                 {
-                    if (!string.Equals(attribute.Key, key, StringComparison.Ordinal)) continue;
-
-                    matches.Add(new AttributeMatch
-                    {
-                        SpanId = log.SpanId,
-                        Key = key,
-                        Value = attribute.Value ?? string.Empty
-                    });
-                }
+                    SpanId = log.SpanId,
+                    Key = key,
+                    Value = attribute.Value ?? string.Empty
+                });
+            }
         }
 
         return matches;

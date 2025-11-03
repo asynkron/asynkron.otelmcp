@@ -10,9 +10,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ConfigureEndpointDefaults(listenOptions =>
-        // Allow both HTTP/1.1 and HTTP/2 so JSON transcoded HTTP endpoints can coexist with gRPC.
-        //listenOptions.Protocols = HttpProtocols.Http2);
-        listenOptions.Protocols = HttpProtocols.Http1AndHttp2);
+    {
+        // Use HTTP/2 only to avoid TLS requirement warnings.
+        // JSON transcoding and HTTP/1.1 clients can still work via HTTP/2 prior knowledge.
+        listenOptions.Protocols = HttpProtocols.Http2;
+    });
 });
 
 var sqliteConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")

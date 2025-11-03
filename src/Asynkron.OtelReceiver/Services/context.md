@@ -15,7 +15,7 @@ This directory contains gRPC service implementations wired into the ASP.NET Core
   counts.
 - [`DataServiceImpl.cs`](DataServiceImpl.cs) – surfaces TraceLens search, metadata, and metrics queries so clients can
   explore persisted telemetry, including the enriched search responses (attribute clause matches and optional span
-  protos). The accompanying `tracelens.proto` now includes HTTP bindings so these operations are reachable via JSON transcoding.
+  protos). Now includes a `GetTrace` operation to retrieve all spans and logs for a specific trace ID. The accompanying `tracelens.proto` includes HTTP bindings so these operations are reachable via JSON transcoding.
 - [`McpStreamingEndpoint.cs`](McpStreamingEndpoint.cs) – provides a Server-Sent Events (SSE) streaming HTTP endpoint that
   mirrors the TraceLens DataService gRPC commands for Model Context Protocol clients. Uses `text/event-stream` content
   type with standard SSE formatting (data: prefix and double newlines). Logs handshake, request, and response payloads

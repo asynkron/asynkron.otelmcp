@@ -1209,6 +1209,164 @@ public class DataServiceTests
     }
 
     [Fact]
+    public async Task GetTrace_ReturnsSpansAndLogsForTraceId()
+    {
+        using var channel = _factory.CreateGrpcChannel();
+        var traceClient = new TraceService.TraceServiceClient(channel);
+        var logsClient = new LogsService.LogsServiceClient(channel);
+        var dataClient = new DataService.DataServiceClient(channel);
+
+        var traceIdBytes = Enumerable.Range(250, 16).Select(i => (byte)i).ToArray();
+        var spanId1Bytes = Enumerable.Range(250, 8).Select(i => (byte)i).ToArray();
+        var spanId2Bytes = Enumerable.Range(260, 8).Select(i => (byte)i).ToArray();
+        var traceIdHex = Convert.ToHexString(traceIdBytes);
+        var spanId1Hex = Convert.ToHexString(spanId1Bytes);
+        var spanId2Hex = Convert.ToHexString(spanId2Bytes);
+
+        var traceRequest = new ExportTraceServiceRequest
+        {
+            ResourceSpans =
+            {
+                new ResourceSpans
+                {
+                    Resource = new Resource
+                    {
+                        Attributes =
+                        {
+                            new KeyValue
+                            {
+                                Key = "service.name",
+                                Value = new AnyValue { StringValue = "get-trace-service" }
+                            }
+                        }
+                    },
+                    ScopeSpans =
+                    {
+                        new ScopeSpans
+                        {
+                            Spans =
+                            {
+                                new Span
+                                {
+                                    TraceId = ByteString.CopyFrom(traceIdBytes),
+                                    SpanId = ByteString.CopyFrom(spanId1Bytes),
+                                    Name = "operation-1",
+                                    StartTimeUnixNano = 1_000,
+                                    EndTimeUnixNano = 2_000,
+                                    Attributes =
+                                    {
+                                        new KeyValue
+                                        {
+                                            Key = "span.kind",
+                                            Value = new AnyValue { StringValue = "server" }
+                                        }
+                                    }
+                                },
+                                new Span
+                                {
+                                    TraceId = ByteString.CopyFrom(traceIdBytes),
+                                    SpanId = ByteString.CopyFrom(spanId2Bytes),
+                                    ParentSpanId = ByteString.CopyFrom(spanId1Bytes),
+                                    Name = "operation-2",
+                                    StartTimeUnixNano = 1_500,
+                                    EndTimeUnixNano = 1_800,
+                                    Attributes =
+                                    {
+                                        new KeyValue
+                                        {
+                                            Key = "span.kind",
+                                            Value = new AnyValue { StringValue = "client" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        await traceClient.ExportAsync(traceRequest);
+
+        var logRequest = new ExportLogsServiceRequest
+        {
+            ResourceLogs =
+            {
+                new ResourceLogs
+                {
+                    Resource = new Resource
+                    {
+                        Attributes =
+                        {
+                            new KeyValue
+                            {
+                                Key = "service.name",
+                                Value = new AnyValue { StringValue = "get-trace-service" }
+                            }
+                        }
+                    },
+                    ScopeLogs =
+                    {
+                        new ScopeLogs
+                        {
+                            LogRecords =
+                            {
+                                new LogRecord
+                                {
+                                    TimeUnixNano = 1_200,
+                                    TraceId = ByteString.CopyFrom(traceIdBytes),
+                                    SpanId = ByteString.CopyFrom(spanId1Bytes),
+                                    Body = new AnyValue { StringValue = "Log message 1" }
+                                },
+                                new LogRecord
+                                {
+                                    TimeUnixNano = 1_600,
+                                    TraceId = ByteString.CopyFrom(traceIdBytes),
+                                    SpanId = ByteString.CopyFrom(spanId2Bytes),
+                                    Body = new AnyValue { StringValue = "Log message 2" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        await logsClient.ExportAsync(logRequest);
+
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == traceIdHex)),
+            "trace to be queryable");
+
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Logs.AnyAsync(log => log.TraceId == traceIdHex)),
+            "logs to be queryable");
+
+        var response = await dataClient.GetTraceAsync(new GetTraceRequest { TraceId = traceIdHex });
+
+        Assert.Equal(2, response.Spans.Count);
+        Assert.Contains(response.Spans, s => s.Span.Name == "operation-1" && s.ServiceName == "get-trace-service");
+        Assert.Contains(response.Spans, s => s.Span.Name == "operation-2" && s.ServiceName == "get-trace-service");
+
+        Assert.Equal(2, response.Logs.Count);
+        Assert.Contains(response.Logs, l => l.Body.StringValue == "Log message 1");
+        Assert.Contains(response.Logs, l => l.Body.StringValue == "Log message 2");
+    }
+
+    [Fact]
+    public async Task GetTrace_ReturnsEmptyForNonexistentTrace()
+    {
+        using var channel = _factory.CreateGrpcChannel();
+        var dataClient = new DataService.DataServiceClient(channel);
+
+        var nonExistentTraceId = "0102030405060708090A0B0C0D0E0F10";
+        var response = await dataClient.GetTraceAsync(new GetTraceRequest { TraceId = nonExistentTraceId });
+
+        Assert.Empty(response.Spans);
+        Assert.Empty(response.Logs);
+    }
+
+    [Fact]
     public async Task SearchTraces_SupportsComparisonOperators()
     {
         using var channel = _factory.CreateGrpcChannel();

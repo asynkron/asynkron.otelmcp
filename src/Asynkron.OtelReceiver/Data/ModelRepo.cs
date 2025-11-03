@@ -306,6 +306,47 @@ public class ModelRepo(
         };
     }
 
+    public async Task<GetTraceResponse> GetTrace(GetTraceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.TraceId))
+        {
+            return new GetTraceResponse();
+        }
+
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var spans = await context.Spans
+            .AsNoTracking()
+            .Where(span => span.TraceId == request.TraceId)
+            .ToListAsync();
+
+        if (spans.Count == 0)
+        {
+            return new GetTraceResponse();
+        }
+
+        var logs = await context.Logs
+            .AsNoTracking()
+            .Where(log => log.TraceId == request.TraceId)
+            .ToListAsync();
+
+        var response = new GetTraceResponse();
+
+        foreach (var span in spans)
+        {
+            var spanProto = SpanWithService.Parser.ParseFrom(span.Proto);
+            response.Spans.Add(spanProto);
+        }
+
+        foreach (var log in logs)
+        {
+            var logRecord = LogRecord.Parser.ParseFrom(log.Proto);
+            response.Logs.Add(logRecord);
+        }
+
+        return response;
+    }
+
     public async Task<SearchTraceResponse> SearchTraces(SearchTracesRequest request)
     {
         await using var context = await contextFactory.CreateDbContextAsync();

@@ -173,6 +173,15 @@ message TraceLensModel {
   repeated opentelemetry.proto.logs.v1.LogRecord logs = 2;
 }
 
+message GetTraceRequest {
+  string trace_id = 1;
+}
+
+message GetTraceResponse {
+  repeated SpanWithService spans = 1;
+  repeated opentelemetry.proto.logs.v1.LogRecord logs = 2;
+}
+
 message GetMetricNamesRequest {
 }
 
@@ -207,6 +216,12 @@ service DataService {
     option (google.api.http) = {
       post: "/v1/tracelens/traces:search"
       body: "*"
+    };
+  }
+
+  rpc GetTrace(GetTraceRequest) returns (GetTraceResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/traces/{trace_id}"
     };
   }
 

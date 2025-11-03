@@ -253,18 +253,66 @@ message GetMetricResponse {
 }
 
 service DataService {
-  rpc GetSearchData(GetSearchDataRequest) returns (GetSearchDataResponse) {}
-  rpc GetValuesForTag(GetValuesForTagRequest) returns (GetValuesForTagResponse) {}
-  rpc SearchTraces(SearchTracesRequest) returns (SearchTracesResponse) {}
+  rpc GetSearchData(GetSearchDataRequest) returns (GetSearchDataResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/search/data"
+    };
+  }
 
-  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse) {}
-  rpc GetServiceMapComponents(GetServiceMapComponentsRequest) returns (GetServiceMapComponentsResponse) {}
+  rpc GetValuesForTag(GetValuesForTagRequest) returns (GetValuesForTagResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/tags/{TagName}/values"
+    };
+  }
 
-  rpc GetComponentMetadata(GetComponentMetadataRequest) returns (GetComponentMetadataResponse) {}
-  rpc SetComponentMetadata(SetComponentMetadataRequest) returns (SetComponentMetadataResponse) {}
-  rpc GetMetadataForComponent(GetMetadataForComponentRequest) returns (GetMetadataForComponentResponse) {}
-  
-  rpc GetMetricNames(GetMetricNamesRequest) returns (GetMetricNamesResponse);
-  rpc GetMetric(GetMetricRequest) returns(GetMetricResponse);
+  rpc SearchTraces(SearchTracesRequest) returns (SearchTracesResponse) {
+    option (google.api.http) = {
+      post: "/v1/tracelens/traces:search"
+      body: "*"
+    };
+  }
+
+  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/snapshots/{id}"
+    };
+  }
+
+  rpc GetServiceMapComponents(GetServiceMapComponentsRequest) returns (GetServiceMapComponentsResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/service-map"
+    };
+  }
+
+  rpc GetComponentMetadata(GetComponentMetadataRequest) returns (GetComponentMetadataResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/components:metadata"
+    };
+  }
+
+  rpc SetComponentMetadata(SetComponentMetadataRequest) returns (SetComponentMetadataResponse) {
+    option (google.api.http) = {
+      post: "/v1/tracelens/components:metadata"
+      body: "*"
+    };
+  }
+
+  rpc GetMetadataForComponent(GetMetadataForComponentRequest) returns (GetMetadataForComponentResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/components/{component_id}/metadata"
+    };
+  }
+
+  rpc GetMetricNames(GetMetricNamesRequest) returns (GetMetricNamesResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/metrics:names"
+    };
+  }
+
+  rpc GetMetric(GetMetricRequest) returns(GetMetricResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/metrics/{name}"
+    };
+  }
 }
 

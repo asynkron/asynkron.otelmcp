@@ -7,14 +7,6 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ConfigureEndpointDefaults(listenOptions =>
-        // Allow both HTTP/1.1 and HTTP/2 so JSON transcoded HTTP endpoints can coexist with gRPC.
-        //listenOptions.Protocols = HttpProtocols.Http2);
-        listenOptions.Protocols = HttpProtocols.Http1AndHttp2);
-});
-
 var sqliteConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                              ?? "Data Source=otel.db";
 

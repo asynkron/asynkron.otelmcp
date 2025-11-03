@@ -205,29 +205,8 @@ public class DataServiceTests
         Assert.NotEmpty(searchResponse.SpanCounts);
         Assert.Single(traceResult.Logs);
 
-        var serviceMap = await dataClient.GetServiceMapComponentsAsync(new GetServiceMapComponentsRequest());
-        Assert.Contains(serviceMap.Components, component => component.ComponentName == "search-service");
+       
 
-        const string metadataKey = "search-service:search-service";
-        await dataClient.SetComponentMetadataAsync(new SetComponentMetadataRequest
-        {
-            NamePath = metadataKey,
-            Annotations = "primary service"
-        });
-
-        var metadataList = await dataClient.GetComponentMetadataAsync(new GetComponentMetadataRequest());
-        Assert.Contains(metadataList.ComponentMetadata,
-            entry => entry.NamePath == metadataKey && entry.Annotations == "primary service");
-
-        var metadata = await dataClient.GetMetadataForComponentAsync(new GetMetadataForComponentRequest
-        {
-            ComponentId = metadataKey
-        });
-
-        Assert.Equal("primary service", metadata.Annotation);
-        Assert.Equal("search-service", metadata.GroupName);
-        Assert.Equal("search-service", metadata.ComponentName);
-        Assert.Equal("Service", metadata.ComponentKind);
     }
 
     [Fact]

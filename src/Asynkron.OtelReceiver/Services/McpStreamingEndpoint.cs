@@ -31,24 +31,16 @@ public static class McpStreamingEndpoint
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["getSearchData"] = async (repo, payload) =>
-                (IMessage)await repo.GetSearchData(Parse<GetSearchDataRequest>(payload)),
+                await repo.GetSearchData(Parse<GetSearchDataRequest>(payload)),
             ["getValuesForTag"] = async (repo, payload) =>
-                (IMessage)await repo.GetValuesForTag(Parse<GetValuesForTagRequest>(payload)),
-            ["searchTraces"] = async (repo, payload) =>
-                (IMessage)await repo.SearchTraces(Parse<SearchTracesRequest>(payload)),
-            ["getServiceMapComponents"] = async (repo, payload) =>
-                (IMessage)await repo.GetServiceMapComponents(Parse<GetServiceMapComponentsRequest>(payload)),
-            ["getComponentMetadata"] = async (repo, payload) =>
-                (IMessage)await repo.GetComponentMetadata(),
-            ["setComponentMetadata"] = async (repo, payload) =>
-                (IMessage)await repo.SetComponentMetadata(Parse<SetComponentMetadataRequest>(payload)),
-            ["getMetadataForComponent"] = async (repo, payload) =>
-                (IMessage)await repo.GetMetadataForComponent(Parse<GetMetadataForComponentRequest>(payload)),
-            ["getSnapshot"] = async (repo, payload) =>
-                (IMessage)await repo.GetSnapshot(Parse<GetSnapshotRequest>(payload)),
-            ["getMetricNames"] = async (repo, payload) =>
-                (IMessage)await repo.GetMetricNames(),
-            ["getMetric"] = async (repo, payload) => (IMessage)await repo.GetMetric(Parse<GetMetricRequest>(payload))
+                await repo.GetValuesForTag(Parse<GetValuesForTagRequest>(payload)),
+
+            ["getComponentMetadata"] = async (repo, _) =>
+                await repo.GetComponentMetadata(),
+
+            ["getMetricNames"] = async (repo, _) =>
+                await repo.GetMetricNames(),
+            ["getMetric"] = async (repo, payload) => await repo.GetMetric(Parse<GetMetricRequest>(payload))
         };
 
     public static RouteHandlerBuilder MapMcpStreamingEndpoint(this IEndpointRouteBuilder endpoints)

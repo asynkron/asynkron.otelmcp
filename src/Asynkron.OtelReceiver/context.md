@@ -4,9 +4,9 @@ This ASP.NET Core gRPC service ingests OTLP telemetry and persists it using Enti
 the global tool `dotnet-otelmcp`, enabling the server to run via `dotnet otelmcp`. Key entry points:
 
 - [`Program.cs`](Program.cs) bootstraps the web host as a standard ASP.NET Core application, wires up the SQLite-backed EF Core factory, registers ingestion
-  services, enables JSON transcoding so TraceLens gRPC endpoints are also reachable over HTTP, and ensures migrations are applied at startup. Configuration follows standard ASP.NET Core patterns (environment variables, command-line args, appsettings.json). Kestrel is configured to use HTTP/2 only (without TLS) to support gRPC services; all clients must use HTTP/2 prior knowledge mode.
+  services, enables JSON transcoding so TraceLens gRPC endpoints are also reachable over HTTP, and ensures migrations are applied at startup. Configuration follows standard ASP.NET Core patterns (environment variables, command-line args, appsettings.json).
 - [`ReceiverMetricsConsole.cs`](ReceiverMetricsConsole.cs) provides a Spectre.Console CLI for monitoring receiver metrics via gRPC. This is available as a library component for building custom monitoring tools that connect to the ReceiverMetricsService endpoint.
-- [`appsettings.json`](appsettings.json) holds default connection strings and provider selection.
+- [`appsettings.json`](appsettings.json) holds default connection strings and Kestrel endpoint configuration. The receiver exposes both an HTTP endpoint (port 5000, HTTP/1.1) and an HTTPS endpoint (port 5001, HTTP/1.1 and HTTP/2 with TLS) to support various client types including gRPC and JSON transcoded HTTP requests.
 - Proto definitions (`tracelens.proto`, `receiver_metrics.proto`) generate gRPC contracts for TraceLens models and
   receiver metrics streaming. `tracelens.proto` now exposes a composable TraceLens search filter tree so clients can
   combine service, span, attribute, error, and duration predicates.

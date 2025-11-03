@@ -7,16 +7,6 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ConfigureEndpointDefaults(listenOptions =>
-    {
-        // Use HTTP/2 only to avoid TLS requirement warnings.
-        // JSON transcoding and HTTP/1.1 clients can still work via HTTP/2 prior knowledge.
-        listenOptions.Protocols = HttpProtocols.Http2;
-    });
-});
-
 var sqliteConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                              ?? "Data Source=otel.db";
 

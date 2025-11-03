@@ -10,7 +10,7 @@ namespace Asynkron.OtelReceiver.Services;
 
 /// <summary>
 /// Minimal Model Context Protocol (MCP) handler that mirrors the TraceLens data gRPC surface
-/// over a newline-delimited JSON (NDJSON) streaming HTTP endpoint.
+/// over a Server-Sent Events (SSE) streaming HTTP endpoint.
 /// </summary>
 public static class McpStreamingEndpoint
 {
@@ -53,7 +53,9 @@ public static class McpStreamingEndpoint
         var logger = loggerFactory.CreateLogger("McpStreaming");
 
         context.Response.StatusCode = StatusCodes.Status200OK;
-        context.Response.ContentType = "application/x-ndjson";
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers.CacheControl = "no-cache";
+        context.Response.Headers.Connection = "keep-alive";
 
         await WriteHandshakeAsync(context.Response, logger, cancellationToken);
 
@@ -107,9 +109,7 @@ public static class McpStreamingEndpoint
                 .ToArray()
         };
 
-        await JsonSerializer.SerializeAsync(response.Body, handshake, SerializerOptions, cancellationToken);
-        await response.WriteAsync("\n", cancellationToken);
-        await response.Body.FlushAsync(cancellationToken);
+        await WriteSseEventAsync(response, handshake, cancellationToken);
         logger.LogInformation("Sent MCP handshake advertising commands: {Commands}",
             string.Join(", ", handshake.Commands));
     }
@@ -117,8 +117,14 @@ public static class McpStreamingEndpoint
     private static async Task WriteEnvelopeAsync(HttpResponse response, McpResponse envelope,
         CancellationToken cancellationToken)
     {
-        await JsonSerializer.SerializeAsync(response.Body, envelope, SerializerOptions, cancellationToken);
-        await response.WriteAsync("\n", cancellationToken);
+        await WriteSseEventAsync(response, envelope, cancellationToken);
+    }
+
+    private static async Task WriteSseEventAsync<T>(HttpResponse response, T data,
+        CancellationToken cancellationToken)
+    {
+        var json = JsonSerializer.Serialize(data, SerializerOptions);
+        await response.WriteAsync($"data: {json}\n\n", cancellationToken);
         await response.Body.FlushAsync(cancellationToken);
     }
 

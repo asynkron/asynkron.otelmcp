@@ -347,7 +347,6 @@ public class ModelRepo(
         var randomTraceId = await context.Spans
             .AsNoTracking()
             .Select(span => span.TraceId)
-            .Distinct()
             .FirstOrDefaultAsync();
 
         if (randomTraceId is null)

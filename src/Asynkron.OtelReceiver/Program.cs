@@ -11,7 +11,10 @@ builder.WebHost.ConfigureKestrel(options =>
 {
     options.ConfigureEndpointDefaults(listenOptions =>
         // Allow both HTTP/1.1 and HTTP/2 so JSON transcoded HTTP endpoints can coexist with gRPC.
-        listenOptions.Protocols = HttpProtocols.Http1AndHttp2);
+        listenOptions.Protocols = HttpProtocols.Http2);
+    
+    //TODO: this breaks the Otel gRPC endpoints - need to investigate
+    //listenOptions.Protocols = HttpProtocols.Http1AndHttp2);
 });
 
 var sqliteConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -22,8 +25,8 @@ builder.Services.AddDbContextFactory<OtelReceiverContext>(options => { options.U
 builder.Services.AddScoped<ISpanBulkInserter, SqliteSpanBulkInserter>();
 
 builder.Services.AddSingleton<IReceiverMetricsCollector, ReceiverMetricsCollector>();
-builder.Services.AddGrpc()
-    .AddJsonTranscoding();
+builder.Services.AddGrpc();
+    //.AddJsonTranscoding();
 builder.Services.AddScoped<ModelRepo>();
 
 var app = builder.Build();

@@ -239,9 +239,18 @@ public class McpStreamingHttpTests
 
     private static async Task<JsonElement> ReadEnvelopeAsync(StreamReader reader)
     {
+        // SSE format: read "data: " line followed by an empty line
         var line = await reader.ReadLineAsync();
         Assert.False(string.IsNullOrWhiteSpace(line), "Expected MCP response line");
-        using var document = JsonDocument.Parse(line!);
+        
+        // Remove "data: " prefix if present (SSE format)
+        var json = line!.StartsWith("data: ") ? line.Substring(6) : line;
+        
+        using var document = JsonDocument.Parse(json);
+        
+        // Consume the empty line after the data line in SSE format
+        var emptyLine = await reader.ReadLineAsync();
+        
         return document.RootElement.Clone();
     }
 

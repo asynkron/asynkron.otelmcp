@@ -13,28 +13,37 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Google.Protobuf" Version="3.25.3"/>
-        <PackageReference Include="Grpc.AspNetCore" Version="2.61.0"/>
-        <PackageReference Include="Grpc.AspNetCore.Web" Version="2.61.0"/>
-        <PackageReference Include="Grpc.Net.Client" Version="2.61.0"/>
-        <PackageReference Include="Grpc.Net.Common" Version="2.61.0"/>
+        <PackageReference Include="Google.Protobuf" Version="3.25.3" />
+        <PackageReference Include="Grpc.AspNetCore" Version="2.61.0" />
+        <PackageReference Include="Grpc.AspNetCore.Web" Version="2.61.0" />
+        <PackageReference Include="Grpc.Net.Client" Version="2.61.0" />
+        <PackageReference Include="Grpc.Net.Common" Version="2.61.0" />
         <PackageReference Include="Grpc.Tools" Version="2.62.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Hocon.Json" Version="2.1.2"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.2"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.2"/>
+        <PackageReference Include="Hocon.Json" Version="2.1.2" />
+        <PackageReference Include="Microsoft.AspNetCore.Grpc.JsonTranscoding" Version="8.0.11" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.2" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.2" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.2">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0"/>
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.2"/>
-        <PackageReference Include="Spectre.Console" Version="0.47.0"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.2" />
+        <PackageReference Include="Spectre.Console" Version="0.47.0" />
     </ItemGroup>
 
     <ItemGroup>
+        <Protobuf Include="google/api/annotations.proto">
+            <Link>Protos/google/api/annotations.proto</Link>
+            <CompileOutputs>false</CompileOutputs>
+        </Protobuf>
+        <Protobuf Include="google/api/http.proto">
+            <Link>Protos/google/api/http.proto</Link>
+            <CompileOutputs>false</CompileOutputs>
+        </Protobuf>
         <Protobuf Include="opentelemetry/proto/collector/metrics/v1/metrics_service.proto">
             <Generator>MSBuild:Compile</Generator>
         </Protobuf>
@@ -61,6 +70,7 @@
         </Protobuf>
         <Protobuf Include="tracelens.proto">
             <Generator>MSBuild:Compile</Generator>
+            <GrpcServices>Both</GrpcServices>
         </Protobuf>
         <Protobuf Include="receiver_metrics.proto">
             <Generator>MSBuild:Compile</Generator>
@@ -69,8 +79,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="ProtoGenerated/**/*.cs"/>
-        <None Include="ProtoGenerated/**/*.cs"/>
+        <Compile Remove="ProtoGenerated/**/*.cs" />
+        <None Include="ProtoGenerated/**/*.cs" />
     </ItemGroup>
 
     <ItemGroup>

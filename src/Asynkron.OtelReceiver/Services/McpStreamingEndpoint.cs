@@ -27,6 +27,8 @@ public static class McpStreamingEndpoint
         .WithFormatDefaultValues(false)
         .WithPreserveProtoFieldNames(false));
 
+    private static readonly Dictionary<string, ComponentMetadata> ComponentMetadataStore = new();
+
     private static readonly Dictionary<string, Func<ModelRepo, JsonElement, Task<IMessage>>> CommandHandlers =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -34,6 +36,8 @@ public static class McpStreamingEndpoint
                 await repo.GetSearchData(Parse<GetSearchDataRequest>(payload)),
             ["getValuesForTag"] = async (repo, payload) =>
                 await repo.GetValuesForTag(Parse<GetValuesForTagRequest>(payload)),
+            ["searchTraces"] = async (repo, payload) =>
+                await repo.SearchTraces(Parse<SearchTracesRequest>(payload)),
             ["getMetricNames"] = async (repo, _) =>
                 await repo.GetMetricNames(),
             ["getMetric"] = async (repo, payload) => await repo.GetMetric(Parse<GetMetricRequest>(payload))
@@ -63,8 +67,20 @@ public static class McpStreamingEndpoint
             McpResponse envelope;
             try
             {
-                var result = await ExecuteCommandAsync(command, repo);
-                envelope = McpResponse.ForResult(command.Id, command.Command, result);
+                if (string.Equals(command.Command, "setComponentMetadata", StringComparison.OrdinalIgnoreCase))
+                {
+                    envelope = HandleSetComponentMetadata(command);
+                }
+                else if (string.Equals(command.Command, "getMetadataForComponent", StringComparison.OrdinalIgnoreCase))
+                {
+                    envelope = HandleGetMetadataForComponent(command);
+                }
+                else
+                {
+                    var result = await ExecuteCommandAsync(command, repo);
+                    envelope = McpResponse.ForResult(command.Id, command.Command, result);
+                }
+                
                 var responsePayload = envelope.Result is JsonElement resultElement
                     ? resultElement.GetRawText()
                     : "{}";
@@ -260,5 +276,101 @@ public static class McpStreamingEndpoint
                 element.WriteTo(writer);
                 break;
         }
+    }
+
+    private static McpResponse HandleSetComponentMetadata(McpCommand command)
+    {
+        var namePath = command.Payload.GetProperty("namePath").GetString() ?? string.Empty;
+        var annotations = command.Payload.GetProperty("annotations").GetString() ?? string.Empty;
+
+        var (groupName, componentName) = ParseComponentId(namePath);
+        
+        ComponentMetadataStore[namePath] = new ComponentMetadata
+        {
+            NamePath = namePath,
+            GroupName = groupName,
+            ComponentName = componentName,
+            ComponentKind = "Service",
+            Annotation = annotations
+        };
+
+        var response = new { success = true };
+        var json = JsonSerializer.Serialize(response, SerializerOptions);
+        using var document = JsonDocument.Parse(json);
+        
+        return new McpResponse
+        {
+            Type = "result",
+            Command = command.Command,
+            Id = command.Id,
+            Result = document.RootElement.Clone()
+        };
+    }
+
+    private static McpResponse HandleGetMetadataForComponent(McpCommand command)
+    {
+        var componentId = command.Payload.GetProperty("componentId").GetString() ?? string.Empty;
+
+        if (ComponentMetadataStore.TryGetValue(componentId, out var metadata))
+        {
+            var response = new
+            {
+                groupName = metadata.GroupName,
+                componentName = metadata.ComponentName,
+                componentKind = metadata.ComponentKind,
+                annotation = metadata.Annotation
+            };
+            
+            var json = JsonSerializer.Serialize(response, SerializerOptions);
+            using var document = JsonDocument.Parse(json);
+            
+            return new McpResponse
+            {
+                Type = "result",
+                Command = command.Command,
+                Id = command.Id,
+                Result = document.RootElement.Clone()
+            };
+        }
+
+        var (groupName, componentName) = ParseComponentId(componentId);
+        var defaultResponse = new
+        {
+            groupName,
+            componentName,
+            componentKind = "Service",
+            annotation = string.Empty
+        };
+        
+        var defaultJson = JsonSerializer.Serialize(defaultResponse, SerializerOptions);
+        using var defaultDocument = JsonDocument.Parse(defaultJson);
+        
+        return new McpResponse
+        {
+            Type = "result",
+            Command = command.Command,
+            Id = command.Id,
+            Result = defaultDocument.RootElement.Clone()
+        };
+    }
+
+    private static (string GroupName, string ComponentName) ParseComponentId(string componentId)
+    {
+        if (string.IsNullOrWhiteSpace(componentId)) return (string.Empty, string.Empty);
+
+        var parts = componentId.Split(':', 2, StringSplitOptions.TrimEntries);
+
+        return parts.Length == 2
+            ? (parts[0], parts[1])
+            : (componentId, componentId);
+    }
+
+    private sealed record ComponentMetadata
+    {
+        public string NamePath { get; init; } = string.Empty;
+        public string GroupName { get; init; } = string.Empty;
+        public string ComponentName { get; init; } = string.Empty;
+        public string ComponentKind { get; init; } = string.Empty;
+        public string Annotation { get; init; } = string.Empty;
     }
 }

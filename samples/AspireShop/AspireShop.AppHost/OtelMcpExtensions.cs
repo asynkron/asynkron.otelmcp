@@ -24,21 +24,19 @@ internal static class OtelMcpExtensions
         builder.Services.TryAddLifecycleHook<OtelMcpEnvironmentHook>();
 
         var otelCollector = builder
-            .AddProject<Projects.Asynkron_OtelReceiver>(ResourceName)
-            .WithEndpoint(OtlpEndpointName, endpoint =>
-            {
-                endpoint.Port = 4317;
-                endpoint.UriScheme = "http";
-                endpoint.Transport = "http2";
-            })
-            // Force Kestrel to listen on the canonical OTLP gRPC port (4317) so Aspire services
-            // can discover it via the generated endpoint reference above.
-            .WithEnvironment("ASPNETCORE_URLS", "http://0.0.0.0:4317")
-            // Configure HTTP/2 protocol required for gRPC. The OtelMCP receiver implements the
-            // OpenTelemetry Protocol (OTLP) gRPC services for traces, logs, and metrics.
-            .WithEnvironment("ASPNETCORE_Kestrel__EndpointDefaults__Protocols", "Http2")
+                .AddProject<Projects.Asynkron_OtelReceiver>(ResourceName)
+                .WithEndpoint(OtlpEndpointName, e =>
+                {
+                    e.Port = 4317;          // public proxy port
+                    e.UriScheme = "http";
+                    e.Transport = "http2";
+                    // do not set ASPNETCORE_URLS; Aspire will inject a random target port
+                })
+                .WithEnvironment("ASPNETCORE_Kestrel__EndpointDefaults__Protocols", "Http2");
+
+
             // Use SQLite by default so the collector does not require additional infrastructure.
-            .WithEnvironment("ConnectionStrings__DefaultConnection", "Data Source=otelmcp.db");
+           // .WithEnvironment("ConnectionStrings__DefaultConnection", "Data Source=otelmcp.db");
 
         return otelCollector;
     }

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Threading.Channels;
 using Google.Protobuf;
 using OpenTelemetry.Proto.Common.V1;
 using OpenTelemetry.Proto.Trace.V1;
@@ -33,5 +34,50 @@ public static class Extensions
     {
         var hex = BitConverter.ToString(bytes.ToByteArray()).Replace("-", "");
         return hex;
+    }
+    
+    public static DateTimeOffset RoundToNearestTimeSpan(this DateTimeOffset dateTime, TimeSpan bucketSize)
+    {
+        var totalSeconds = (int)dateTime.TimeOfDay.TotalSeconds;
+        var roundedSeconds = (int)Math.Round(totalSeconds / bucketSize.TotalSeconds) * bucketSize.TotalSeconds;
+        return new DateTimeOffset(dateTime.Date.AddSeconds(roundedSeconds), dateTime.Offset);
+    }
+
+    public static DateTimeOffset UnixNanosToDateTimeOffset(this ulong t)
+    {
+        return DateTimeOffset.FromUnixTimeMilliseconds((long)(t / 1_000_000));
+    }
+
+    public static ulong ToUnixTimeNanoseconds(this DateTimeOffset t)
+    {
+        return (ulong)t.ToUnixTimeMilliseconds() * 1_000_000;
+    }
+    
+    
+    public static async ValueTask<List<T>> ReadBatchAsync<T>(this ChannelReader<T> reader, int max)
+    {
+        await reader.WaitToReadAsync();
+        var results = new List<T>(max);
+        var i = 3;
+        while (true)
+        {
+            while (
+                results.Count < max
+                && reader.TryRead(out var item))
+                results.Add(item);
+
+            if (results.Count == max)
+                return results;
+
+            if (i > 0)
+            {
+                await Task.Delay(100);
+                i--;
+            }
+            else
+            {
+                return results;
+            }
+        }
     }
 }

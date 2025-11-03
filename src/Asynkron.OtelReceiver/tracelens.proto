@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package tracelens.proto.v1;
+package otel_mcp.proto.v1;
 
 import "opentelemetry/proto/trace/v1/trace.proto";
 import "opentelemetry/proto/logs/v1/logs.proto";

@@ -2,7 +2,7 @@ using System.Threading.Channels;
 using Grpc.Core;
 using OpenTelemetry.Proto.Collector.Trace.V1;
 using TraceLens.Infra;
-using Tracelens.Proto.V1;
+using OtelMcp.Proto.V1;
 using Asynkron.OtelReceiver.Data;
 using Asynkron.OtelReceiver.Monitoring;
 

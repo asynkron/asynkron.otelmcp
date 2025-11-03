@@ -4,7 +4,7 @@ using Google.Protobuf;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Proto.Logs.V1;
 using TraceLens.Infra;
-using Tracelens.Proto.V1;
+using OtelMcp.Proto.V1;
 using Metric = OpenTelemetry.Proto.Metrics.V1.Metric;
 
 namespace Asynkron.OtelReceiver.Data;

@@ -6,7 +6,7 @@ using OpenTelemetry.Proto.Common.V1;
 using OpenTelemetry.Proto.Logs.V1;
 using OpenTelemetry.Proto.Resource.V1;
 using OpenTelemetry.Proto.Trace.V1;
-using Tracelens.Proto.V1;
+using OtelMcp.Proto.V1;
 using Xunit;
 
 namespace Asynkron.OtelReceiver.Tests;

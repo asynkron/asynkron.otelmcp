@@ -1,5 +1,6 @@
 using OpenTelemetry.Proto.Common.V1;
 using TraceLens;
+using TraceLens.Infra;
 // ReSharper disable once CheckNamespace
 using Google.Protobuf.Collections;
 

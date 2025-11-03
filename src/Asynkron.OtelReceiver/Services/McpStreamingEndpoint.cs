@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Asynkron.OtelReceiver.Data;
 using Google.Protobuf;
-using Tracelens.Proto.V1;
+using OtelMcp.Proto.V1;
 
 namespace Asynkron.OtelReceiver.Services;
 

@@ -30,4 +30,9 @@ public class DataServiceImpl(ModelRepo modelRepo) : DataService.DataServiceBase
     {
         return modelRepo.GetMetric(request);
     }
+
+    public override Task<SearchTraceResponse> SearchTraces(SearchTracesRequest request, ServerCallContext context)
+    {
+        return modelRepo.SearchTraces(request);
+    }
 }

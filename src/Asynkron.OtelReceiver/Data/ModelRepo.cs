@@ -306,6 +306,186 @@ public class ModelRepo(
         };
     }
 
+    public async Task<SearchTraceResponse> SearchTraces(SearchTracesRequest request)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+
+        var serviceNames = new HashSet<string>();
+        var spanNames = new HashSet<string>();
+        CollectFilterHints(request.Filter, serviceNames, spanNames);
+
+        var requiredSpanAttributeFilters = new List<AttributeFilter>();
+        CollectRequiredSpanAttributeFilters(request.Filter, requiredSpanAttributeFilters, true);
+
+        var requiredLogAttributeFilters = new List<AttributeFilter>();
+        CollectRequiredLogAttributeFilters(request.Filter, requiredLogAttributeFilters, true);
+
+        var (minDuration, maxDuration) = CollectDurationBounds(request.Filter);
+
+        var spanQuery = context.Spans.AsNoTracking();
+        var attributeQuery = context.SpanAttributeValues.AsNoTracking();
+
+        if (serviceNames.Count > 0)
+            spanQuery = spanQuery.Where(span => serviceNames.Contains(span.ServiceName));
+
+        if (spanNames.Count > 0)
+            spanQuery = spanQuery.Where(span => spanNames.Contains(span.OperationName));
+
+        foreach (var filter in requiredSpanAttributeFilters)
+            spanQuery = ApplySpanAttributeFilter(spanQuery, attributeQuery, filter);
+
+        if (minDuration.HasValue || maxDuration.HasValue)
+        {
+            var minDurationLong = minDuration.HasValue ? (long)minDuration.Value : long.MinValue;
+            var maxDurationLong = maxDuration.HasValue ? (long)maxDuration.Value : long.MaxValue;
+            
+            if (minDuration.HasValue && maxDuration.HasValue)
+                spanQuery = spanQuery.Where(span =>
+                    (span.EndTimestamp - span.StartTimestamp) >= minDurationLong &&
+                    (span.EndTimestamp - span.StartTimestamp) <= maxDurationLong);
+            else if (minDuration.HasValue)
+                spanQuery = spanQuery.Where(span =>
+                    (span.EndTimestamp - span.StartTimestamp) >= minDurationLong);
+            else if (maxDuration.HasValue)
+                spanQuery = spanQuery.Where(span =>
+                    (span.EndTimestamp - span.StartTimestamp) <= maxDurationLong);
+        }
+
+        if (request.StartTime > 0)
+            spanQuery = spanQuery.Where(span => (ulong)span.StartTimestamp >= request.StartTime);
+
+        if (request.EndTime > 0)
+            spanQuery = spanQuery.Where(span => (ulong)span.EndTimestamp <= request.EndTime);
+
+        var traceIds = await spanQuery
+            .Select(span => span.TraceId)
+            .Distinct()
+            .Take(request.Limit > 0 ? request.Limit : 100)
+            .ToListAsync();
+
+        var allSpans = await context.Spans
+            .AsNoTracking()
+            .Where(span => traceIds.Contains(span.TraceId))
+            .ToListAsync();
+
+        var allLogs = await context.Logs
+            .AsNoTracking()
+            .Include(log => log.Attributes)
+            .Where(log => traceIds.Contains(log.TraceId))
+            .ToListAsync();
+
+        var allSpanAttributes = await context.SpanAttributeValues
+            .AsNoTracking()
+            .Where(attribute => allSpans.Select(s => s.SpanId).Contains(attribute.SpanId))
+            .ToListAsync();
+
+        var spanAttributesLookup = allSpanAttributes
+            .GroupBy(attribute => attribute.SpanId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<SpanAttributeValueEntity>)group.ToList());
+
+        var spansByTrace = allSpans.GroupBy(span => span.TraceId);
+        var logsByTrace = allLogs.GroupBy(log => log.TraceId);
+
+        var results = new List<SearchTraceResult>();
+
+        foreach (var traceGroup in spansByTrace)
+        {
+            var traceId = traceGroup.Key;
+            var spans = traceGroup.ToList();
+            var logs = logsByTrace.FirstOrDefault(g => g.Key == traceId)?.ToList() ?? new List<LogEntity>();
+
+            var traceContext = new TraceContext(spans, logs, spanAttributesLookup);
+            var clauseMap = new Dictionary<string, AttributeClauseMatch>();
+
+            if (!EvaluateTraceFilter(request.Filter, traceContext, clauseMap))
+                continue;
+
+            var logQuery = logs.AsQueryable();
+            foreach (var filter in requiredLogAttributeFilters)
+                logQuery = ApplyLogAttributeFilter(logQuery, filter);
+
+            var filteredLogs = logQuery.ToList();
+
+            if (request.LogFilter != null && !string.IsNullOrWhiteSpace(request.LogFilter.BodyContains))
+            {
+                filteredLogs = filteredLogs
+                    .Where(log => log.Body?.Contains(request.LogFilter.BodyContains, StringComparison.OrdinalIgnoreCase) == true)
+                    .ToList();
+            }
+
+            var startTime = spans.Min(s => (ulong)s.StartTimestamp);
+            var endTime = spans.Max(s => (ulong)s.EndTimestamp);
+            var hasError = spans.Any(SpanHasError);
+
+            var traceOverview = new TraceOverview
+            {
+                TraceId = traceId,
+                Name = spans.FirstOrDefault()?.OperationName ?? string.Empty,
+                StartTimeUnixNano = startTime,
+                EndTimeUnixNano = endTime,
+                HasError = hasError
+            };
+
+            foreach (var span in spans)
+            {
+                traceOverview.Spans.Add(new SpanOverview
+                {
+                    TraceId = span.TraceId,
+                    OperationName = span.OperationName,
+                    ServiceName = span.ServiceName
+                });
+            }
+
+            var result = new SearchTraceResult
+            {
+                Trace = traceOverview
+            };
+
+            result.AttributeClauses.AddRange(clauseMap.Values);
+
+            foreach (var log in filteredLogs)
+            {
+                var logRecord = LogRecord.Parser.ParseFrom(log.Proto);
+                result.Logs.Add(logRecord);
+            }
+
+            foreach (var span in spans)
+            {
+                var spanProto = SpanWithService.Parser.ParseFrom(span.Proto);
+                result.Spans.Add(spanProto.Span);
+            }
+
+            results.Add(result);
+        }
+
+        var logCounts = allLogs
+            .GroupBy(log => log.RawBody)
+            .Select(group => new LogCount
+            {
+                RawBody = group.Key ?? string.Empty,
+                Count = group.Count()
+            })
+            .ToList();
+
+        var spanCounts = allSpans
+            .GroupBy(span => span.OperationName)
+            .Select(group => new SpanCount
+            {
+                SpanName = group.Key,
+                Count = group.Count()
+            })
+            .ToList();
+
+        var response = new SearchTraceResponse();
+        response.Results.AddRange(results);
+        response.LogCounts.AddRange(logCounts);
+        response.SpanCounts.AddRange(spanCounts);
+
+        return response;
+    }
+
     private static void CollectFilterHints(
         TraceFilterExpression? expression,
         ISet<string> serviceNames,

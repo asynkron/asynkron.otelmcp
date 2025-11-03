@@ -162,15 +162,6 @@ message SpanCount {
   int32 count = 2;
 }
 
-message GetComponentMetadataResponse {
-  message ComponentMetadata {
-    string name_path = 1;
-    string annotations = 2;
-  }
-
-  repeated ComponentMetadata component_metadata = 1;
-}
-
 message TraceLensModel {
   repeated SpanWithService spans = 1;
   repeated opentelemetry.proto.logs.v1.LogRecord logs = 2;

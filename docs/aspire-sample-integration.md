@@ -64,13 +64,6 @@ Because the exporters honor the standard OTLP environment variables, the sample 
 ## Step 2 – Generate traffic and inspect the data
 
 - Browse to the URLs printed by the AppHost (typically `https://localhost:7091` for the frontend) to generate load. Shopping cart interactions exercise both HTTP and gRPC backends, producing diverse telemetry for the receiver.
-- To monitor ingestion throughput from another terminal, run:
-
-  ```bash
-  dotnet run --project src/Asynkron.OtelReceiver -- --metrics-client --address http://localhost:4317
-  ```
-
-  The console streams `ReceiverMetrics` updates from the instance that the AppHost launched.
 - Use the MCP streaming endpoint (`POST /mcp/stream`) with commands such as `searchTraces` or `getMetricNames` to explore the ingested data once traffic is flowing.
 - If you need to replay the demo, stop the AppHost with `Ctrl+C` and run it again; its initialization routines reset the Postgres catalog through the `/reset-db` command exposed in `AppHost.cs`.
 

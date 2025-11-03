@@ -16,7 +16,7 @@ This repository hosts the **Asynkron OTLP Receiver**, a .NET 8 solution for inge
 - gRPC endpoints implementing OTLP trace, log, metric, and custom receiver-metrics services.
 - Entity Framework Core models and migrations backing SQLite storage.
 - TraceLens domain model (component/group extraction, timeline calculations, metrics helpers) used to interpret OTLP payloads.
-- Distributable as the `dotnet-otelmcp` global tool so operators can run the receiver via `dotnet otelmcp` with optional metrics streaming.
+- Distributable as the `dotnet-otelmcp` global tool so operators can run the receiver via `dotnet otelmcp`. Configuration follows standard ASP.NET Core patterns.
 - Generated OpenTelemetry protocol buffers that define the gRPC surface area consumed by the receiver.
 
 ## Where to look next

@@ -6,7 +6,7 @@ Current entries:
 
 - [`aspire-sample-integration.md`](aspire-sample-integration.md) – step-by-step instructions for running the vendored .NET Aspire Shop sample against the receiver to generate realistic OTLP traffic.
 - [`aspire-otlp-grpc-configuration.md`](aspire-otlp-grpc-configuration.md) – detailed explanation of how Aspire applications are configured to send OpenTelemetry data to the OtelMCP receiver using the OTLP gRPC protocol, including environment variable injection, exporter configuration, and troubleshooting guidance.
-- [`dotnet-tool.md`](dotnet-tool.md) – installation and usage notes for the `dotnet-otelmcp` global tool, including `--address` and `--metrics-client` guidance.
+- [`dotnet-tool.md`](dotnet-tool.md) – installation and usage notes for the `dotnet-otelmcp` global tool, including standard ASP.NET Core configuration guidance.
 - [`tracelens-search.md`](tracelens-search.md) – outlines the composable `SearchTraces` filter expression so API consumers can combine service and attribute predicates with AND/OR logic.
 - [`tracelens-search-response.md`](tracelens-search-response.md) – documents the enriched `SearchTraces` response payload (attribute clause matches and optional span protos) so UI/CLI clients can adopt the new metadata.
 

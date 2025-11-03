@@ -1,6 +1,6 @@
 # `dotnet-otelmcp` Global Tool
 
-The receiver project can be distributed as a .NET global tool named `dotnet-otelmcp`. Installing the tool provides the `dotnet otelmcp` command that boots the OTLP receiver, applies EF Core migrations, and exposes the optional metrics console client.
+The receiver project can be distributed as a .NET global tool named `dotnet-otelmcp`. Installing the tool provides the `dotnet otelmcp` command that boots the OTLP receiver and applies EF Core migrations.
 
 ## Installation
 
@@ -31,22 +31,36 @@ dotnet otelmcp
 
 > **Note:** The `dotnet` driver resolves to the same shim the global tool installs. If your shell cannot locate the command via `dotnet otelmcp`, invoke `otelmcp` directly.
 
-### Selecting a Bind Address
+## Configuration
 
-Use `--address` to specify the HTTP/gRPC listener (defaults to `http://localhost:5000`).
+The receiver is a standard ASP.NET Core application and can be configured using any of the standard configuration methods:
 
-```bash
-# Bind to all interfaces on port 7171
-dotnet otelmcp --address http://0.0.0.0:7171
-```
-
-## Metrics Console
-
-The tool also includes a live metrics console implemented with Spectre.Console.
+### Using Environment Variables
 
 ```bash
-# Connect the metrics console to a running receiver instance
-dotnet otelmcp --metrics-client --address http://localhost:5000
+# Set the bind address using environment variables
+export ASPNETCORE_URLS="http://0.0.0.0:7171"
+dotnet otelmcp
 ```
 
-When `--metrics-client` is provided the process connects to the server instead of hosting it, streaming ingestion counters in real time.
+### Using Command-Line Arguments
+
+```bash
+# Bind to all interfaces on port 7171 using command-line arguments
+dotnet otelmcp --urls "http://0.0.0.0:7171"
+```
+
+### Using appsettings.json
+
+You can also create an `appsettings.json` file in the working directory with custom configuration:
+
+```json
+{
+  "Urls": "http://0.0.0.0:7171",
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source=custom-otel.db"
+  }
+}
+```
+
+See the [ASP.NET Core Configuration documentation](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/) for more details on available configuration options.

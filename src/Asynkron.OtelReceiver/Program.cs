@@ -10,7 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ConfigureEndpointDefaults(listenOptions =>
-        listenOptions.Protocols = HttpProtocols.Http2);
+        // Allow both HTTP/1.1 and HTTP/2 so JSON transcoded HTTP endpoints can coexist with gRPC.
+        listenOptions.Protocols = HttpProtocols.Http1AndHttp2);
 });
 
 var sqliteConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -21,7 +22,8 @@ builder.Services.AddDbContextFactory<OtelReceiverContext>(options => { options.U
 builder.Services.AddScoped<ISpanBulkInserter, SqliteSpanBulkInserter>();
 
 builder.Services.AddSingleton<IReceiverMetricsCollector, ReceiverMetricsCollector>();
-builder.Services.AddGrpc();
+builder.Services.AddGrpc()
+    .AddJsonTranscoding();
 builder.Services.AddScoped<ModelRepo>();
 
 var app = builder.Build();

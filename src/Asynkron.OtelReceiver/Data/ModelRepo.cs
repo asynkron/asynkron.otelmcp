@@ -985,15 +985,4 @@ public class ModelRepo(
             string.Equals(attribute, "status.code:STATUS_CODE_ERROR", StringComparison.Ordinal) ||
             attribute.Contains("error", StringComparison.OrdinalIgnoreCase));
     }
-
-    private static (string GroupName, string ComponentName) ParseComponentId(string componentId)
-    {
-        if (string.IsNullOrWhiteSpace(componentId)) return (string.Empty, string.Empty);
-
-        var parts = componentId.Split(':', 2, StringSplitOptions.TrimEntries);
-
-        return parts.Length == 2
-            ? (parts[0], parts[1])
-            : (componentId, componentId);
-    }
 }

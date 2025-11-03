@@ -204,9 +204,6 @@ public class DataServiceTests
         Assert.NotEmpty(searchResponse.LogCounts);
         Assert.NotEmpty(searchResponse.SpanCounts);
         Assert.Single(traceResult.Logs);
-
-       
-
     }
 
     [Fact]

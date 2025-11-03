@@ -154,8 +154,6 @@ public class McpStreamingHttpTests
                 context.Logs.AnyAsync(log => log.TraceId == traceIdHex)),
             "log to be queryable");
 
-        var metadataKey = "mcp-service:mcp-service";
-
         var commands = new[]
         {
             SerializeCommand("1", "getSearchData", new { }),
@@ -189,15 +187,6 @@ public class McpStreamingHttpTests
                         }
                     }
                 }
-            }),
-            SerializeCommand("3", "setComponentMetadata", new
-            {
-                namePath = metadataKey,
-                annotations = "mcp primary"
-            }),
-            SerializeCommand("4", "getMetadataForComponent", new
-            {
-                componentId = metadataKey
             })
         };
 
@@ -243,18 +232,6 @@ public class McpStreamingHttpTests
         Assert.Equal(traceIdHex, trace.GetProperty("traceId").GetString());
         Assert.NotEmpty(trace.GetProperty("spans").EnumerateArray());
         Assert.NotEmpty(traceEntry.GetProperty("logs").EnumerateArray());
-
-        var metadataAck = await ReadEnvelopeAsync(reader);
-        Assert.Equal("3", metadataAck.GetProperty("id").GetString());
-        Assert.Equal("result", metadataAck.GetProperty("type").GetString());
-
-        var metadataEnvelope = await ReadEnvelopeAsync(reader);
-        Assert.Equal("4", metadataEnvelope.GetProperty("id").GetString());
-        var metadataResult = metadataEnvelope.GetProperty("result");
-        Assert.Equal("mcp-service", metadataResult.GetProperty("groupName").GetString());
-        Assert.Equal("mcp-service", metadataResult.GetProperty("componentName").GetString());
-        Assert.Equal("Service", metadataResult.GetProperty("componentKind").GetString());
-        Assert.Equal("mcp primary", metadataResult.GetProperty("annotation").GetString());
     }
 
     private static string SerializeCommand(string id, string command, object payload)

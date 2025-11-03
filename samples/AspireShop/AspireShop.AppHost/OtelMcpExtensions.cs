@@ -31,8 +31,7 @@ internal static class OtelMcpExtensions
                     e.UriScheme = "http";
                     e.Transport = "http2";
                     // do not set ASPNETCORE_URLS; Aspire will inject a random target port
-                })
-                .WithEnvironment("ASPNETCORE_Kestrel__EndpointDefaults__Protocols", "Http2");
+                });
 
 
             // Use SQLite by default so the collector does not require additional infrastructure.

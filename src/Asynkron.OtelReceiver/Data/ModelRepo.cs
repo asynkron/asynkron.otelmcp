@@ -315,20 +315,15 @@ public class ModelRepo(
 
         await using var context = await contextFactory.CreateDbContextAsync();
 
-        var spansTask = context.Spans
+        var spans = await context.Spans
             .AsNoTracking()
             .Where(span => span.TraceId == request.TraceId)
             .ToListAsync();
 
-        var logsTask = context.Logs
+        var logs = await context.Logs
             .AsNoTracking()
             .Where(log => log.TraceId == request.TraceId)
             .ToListAsync();
-
-        await Task.WhenAll(spansTask, logsTask);
-
-        var spans = await spansTask;
-        var logs = await logsTask;
 
         if (spans.Count == 0)
         {
@@ -354,20 +349,15 @@ public class ModelRepo(
             return new GetRandomTraceResponse();
         }
 
-        var spansTask = context.Spans
+        var spans = await context.Spans
             .AsNoTracking()
             .Where(span => span.TraceId == randomTraceId)
             .ToListAsync();
 
-        var logsTask = context.Logs
+        var logs = await context.Logs
             .AsNoTracking()
             .Where(log => log.TraceId == randomTraceId)
             .ToListAsync();
-
-        await Task.WhenAll(spansTask, logsTask);
-
-        var spans = await spansTask;
-        var logs = await logsTask;
 
         var response = new GetRandomTraceResponse();
         PopulateTraceResponse(spans, logs, response.Spans, response.Logs);

@@ -315,20 +315,25 @@ public class ModelRepo(
 
         await using var context = await contextFactory.CreateDbContextAsync();
 
-        var spans = await context.Spans
+        var spansTask = context.Spans
             .AsNoTracking()
             .Where(span => span.TraceId == request.TraceId)
             .ToListAsync();
+
+        var logsTask = context.Logs
+            .AsNoTracking()
+            .Where(log => log.TraceId == request.TraceId)
+            .ToListAsync();
+
+        await Task.WhenAll(spansTask, logsTask);
+
+        var spans = await spansTask;
+        var logs = await logsTask;
 
         if (spans.Count == 0)
         {
             return new GetTraceResponse();
         }
-
-        var logs = await context.Logs
-            .AsNoTracking()
-            .Where(log => log.TraceId == request.TraceId)
-            .ToListAsync();
 
         var response = new GetTraceResponse();
 

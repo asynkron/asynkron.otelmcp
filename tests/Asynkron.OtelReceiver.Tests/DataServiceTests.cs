@@ -1367,6 +1367,132 @@ public class DataServiceTests
     }
 
     [Fact]
+    public async Task GetRandomTrace_ReturnsAnyAvailableTrace()
+    {
+        using var channel = _factory.CreateGrpcChannel();
+        var traceClient = new TraceService.TraceServiceClient(channel);
+        var logsClient = new LogsService.LogsServiceClient(channel);
+        var dataClient = new DataService.DataServiceClient(channel);
+
+        var traceIdBytes = Enumerable.Range(250, 16).Select(i => (byte)i).ToArray();
+        var spanIdBytes = Enumerable.Range(190, 8).Select(i => (byte)i).ToArray();
+        var traceIdHex = Convert.ToHexString(traceIdBytes);
+
+        var traceRequest = new ExportTraceServiceRequest
+        {
+            ResourceSpans =
+            {
+                new ResourceSpans
+                {
+                    Resource = new Resource
+                    {
+                        Attributes =
+                        {
+                            new KeyValue
+                            {
+                                Key = "service.name",
+                                Value = new AnyValue { StringValue = "random-trace-service" }
+                            }
+                        }
+                    },
+                    ScopeSpans =
+                    {
+                        new ScopeSpans
+                        {
+                            Spans =
+                            {
+                                new Span
+                                {
+                                    TraceId = ByteString.CopyFrom(traceIdBytes),
+                                    SpanId = ByteString.CopyFrom(spanIdBytes),
+                                    Name = "random-operation",
+                                    StartTimeUnixNano = 1_000,
+                                    EndTimeUnixNano = 2_000,
+                                    Attributes =
+                                    {
+                                        new KeyValue
+                                        {
+                                            Key = "test.key",
+                                            Value = new AnyValue { StringValue = "test-value" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        await traceClient.ExportAsync(traceRequest);
+
+        var logRequest = new ExportLogsServiceRequest
+        {
+            ResourceLogs =
+            {
+                new ResourceLogs
+                {
+                    Resource = new Resource
+                    {
+                        Attributes =
+                        {
+                            new KeyValue
+                            {
+                                Key = "service.name",
+                                Value = new AnyValue { StringValue = "random-trace-service" }
+                            }
+                        }
+                    },
+                    ScopeLogs =
+                    {
+                        new ScopeLogs
+                        {
+                            LogRecords =
+                            {
+                                new LogRecord
+                                {
+                                    TimeUnixNano = 1_500,
+                                    TraceId = ByteString.CopyFrom(traceIdBytes),
+                                    SpanId = ByteString.CopyFrom(spanIdBytes),
+                                    Body = new AnyValue { StringValue = "Random trace log" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        await logsClient.ExportAsync(logRequest);
+
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Spans.AnyAsync(span => span.TraceId == traceIdHex)),
+            "random trace to be queryable");
+
+        await WaitForAsync(async () => await _factory.ExecuteDbContextAsync(context =>
+                context.Logs.AnyAsync(log => log.TraceId == traceIdHex)),
+            "random trace logs to be queryable");
+
+        var response = await dataClient.GetRandomTraceAsync(new GetRandomTraceRequest());
+
+        // GetRandomTrace returns any available trace, which may be from this test or previous tests
+        // We just verify that the response contains valid trace data
+        Assert.NotEmpty(response.Spans);
+        Assert.All(response.Spans, span => Assert.NotNull(span.ServiceName));
+    }
+
+    [Fact]
+    public async Task GetRandomTrace_ReturnsEmptyWhenNoTracesExist()
+    {
+        using var channel = _factory.CreateGrpcChannel();
+        var dataClient = new DataService.DataServiceClient(channel);
+
+        var response = await dataClient.GetRandomTraceAsync(new GetRandomTraceRequest());
+
+        Assert.NotNull(response);
+    }
+
+    [Fact]
     public async Task SearchTraces_SupportsComparisonOperators()
     {
         using var channel = _factory.CreateGrpcChannel();

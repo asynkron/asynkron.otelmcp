@@ -24,6 +24,8 @@ The data layer converts OTLP payloads into persisted records and exposes read/wr
   ingestion counters.
 - `ModelRepo.GetTrace` retrieves all spans and logs for a specific trace ID, deserializing the stored protobuf data and
   returning them wrapped in `SpanWithService` messages for complete trace visibility.
+- `ModelRepo.GetRandomTrace` retrieves any available trace by selecting the first trace ID found in the database, useful 
+  for testing and demonstration purposes without requiring knowledge of specific trace IDs.
 - `ModelRepo.SearchTraces` now annotates matching attribute clauses (span id, key, value) and can optionally hydrate the
   original OTLP span protos when callers set `include_span_protos` on the request. Span-attribute predicates are pushed
   to SQL using the normalised table before trace hydration so limit handling no longer drops matches, and evaluator

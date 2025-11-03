@@ -40,4 +40,9 @@ public class DataServiceImpl(ModelRepo modelRepo) : DataService.DataServiceBase
     {
         return modelRepo.GetTrace(request);
     }
+
+    public override Task<GetRandomTraceResponse> GetRandomTrace(GetRandomTraceRequest request, ServerCallContext context)
+    {
+        return modelRepo.GetRandomTrace(request);
+    }
 }

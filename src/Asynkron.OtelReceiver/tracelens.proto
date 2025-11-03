@@ -182,6 +182,14 @@ message GetTraceResponse {
   repeated opentelemetry.proto.logs.v1.LogRecord logs = 2;
 }
 
+message GetRandomTraceRequest {
+}
+
+message GetRandomTraceResponse {
+  repeated SpanWithService spans = 1;
+  repeated opentelemetry.proto.logs.v1.LogRecord logs = 2;
+}
+
 message GetMetricNamesRequest {
 }
 
@@ -222,6 +230,12 @@ service DataService {
   rpc GetTrace(GetTraceRequest) returns (GetTraceResponse) {
     option (google.api.http) = {
       get: "/v1/tracelens/traces/{trace_id}"
+    };
+  }
+
+  rpc GetRandomTrace(GetRandomTraceRequest) returns (GetRandomTraceResponse) {
+    option (google.api.http) = {
+      get: "/v1/tracelens/traces:random"
     };
   }
 

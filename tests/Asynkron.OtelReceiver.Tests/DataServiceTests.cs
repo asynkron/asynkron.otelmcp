@@ -1217,8 +1217,8 @@ public class DataServiceTests
         var dataClient = new DataService.DataServiceClient(channel);
 
         var traceIdBytes = Enumerable.Range(250, 16).Select(i => (byte)i).ToArray();
-        var spanId1Bytes = Enumerable.Range(50, 8).Select(i => (byte)i).ToArray();
-        var spanId2Bytes = Enumerable.Range(60, 8).Select(i => (byte)i).ToArray();
+        var spanId1Bytes = Enumerable.Range(240, 8).Select(i => (byte)i).ToArray();
+        var spanId2Bytes = Enumerable.Range(248, 8).Select(i => (byte)i).ToArray();
         var traceIdHex = Convert.ToHexString(traceIdBytes);
         var spanId1Hex = Convert.ToHexString(spanId1Bytes);
         var spanId2Hex = Convert.ToHexString(spanId2Bytes);

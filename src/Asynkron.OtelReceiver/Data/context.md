@@ -25,8 +25,8 @@ The data layer converts OTLP payloads into persisted records and exposes read/wr
 - `ModelRepo.GetTrace` retrieves all spans and logs for a specific trace ID sequentially to avoid EF Core concurrency 
   issues, deserializing the stored protobuf data and returning them wrapped in `SpanWithService` messages for complete 
   trace visibility.
-- `ModelRepo.GetRandomTrace` retrieves a truly random trace by collecting all distinct trace IDs, selecting a random 
-  index using `Random.Shared`, and returning the corresponding trace with its spans and logs. This is useful for testing 
+- `ModelRepo.GetRandomTrace` retrieves a truly random trace by counting distinct trace IDs, using `Random.Shared` to 
+  skip to a random position, and returning the corresponding trace with its spans and logs. This is useful for testing 
   and demonstration purposes without requiring knowledge of specific trace IDs. Queries are executed sequentially to 
   prevent EF Core InvalidOperationException when multiple operations run on the same DbContext.
 - `ModelRepo.SearchTraces` now annotates matching attribute clauses (span id, key, value) and can optionally hydrate the

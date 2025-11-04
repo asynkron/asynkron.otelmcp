@@ -339,19 +339,29 @@ public class ModelRepo(
     {
         await using var context = await contextFactory.CreateDbContextAsync();
 
-        var distinctTraceIds = await context.Spans
+        var traceCount = await context.Spans
             .AsNoTracking()
             .Select(span => span.TraceId)
             .Distinct()
-            .ToListAsync();
+            .CountAsync();
 
-        if (distinctTraceIds.Count == 0)
+        if (traceCount == 0)
         {
             return new GetRandomTraceResponse();
         }
 
-        var randomIndex = Random.Shared.Next(distinctTraceIds.Count);
-        var randomTraceId = distinctTraceIds[randomIndex];
+        var randomSkip = Random.Shared.Next(traceCount);
+        var randomTraceId = await context.Spans
+            .AsNoTracking()
+            .Select(span => span.TraceId)
+            .Distinct()
+            .Skip(randomSkip)
+            .FirstOrDefaultAsync();
+
+        if (randomTraceId is null)
+        {
+            return new GetRandomTraceResponse();
+        }
 
         var spans = await context.Spans
             .AsNoTracking()

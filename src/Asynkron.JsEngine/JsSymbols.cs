@@ -1,0 +1,21 @@
+namespace Asynkron.JsEngine;
+
+/// <summary>
+/// Centralised symbol definitions so parser and evaluator agree on structure.
+/// </summary>
+public static class JsSymbols
+{
+    public static readonly Symbol Program = Symbol.Intern("program");
+    public static readonly Symbol Let = Symbol.Intern("let");
+    public static readonly Symbol Function = Symbol.Intern("function");
+    public static readonly Symbol Block = Symbol.Intern("block");
+    public static readonly Symbol Return = Symbol.Intern("return");
+    public static readonly Symbol ExpressionStatement = Symbol.Intern("expr-stmt");
+    public static readonly Symbol Assign = Symbol.Intern("assign");
+    public static readonly Symbol Call = Symbol.Intern("call");
+    public static readonly Symbol Negate = Symbol.Intern("negate");
+    public static readonly Symbol Not = Symbol.Intern("not");
+    public static readonly Symbol Lambda = Symbol.Intern("lambda");
+
+    public static Symbol Operator(string op) => Symbol.Intern(op);
+}

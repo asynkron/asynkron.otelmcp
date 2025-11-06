@@ -6,3 +6,4 @@ Other notable items:
 - [`Asynkron.OtelReceiver.sln`](../Asynkron.OtelReceiver.sln) references this folder exclusively.
 - Subdirectories mirror bounded concerns; follow each linked `context.md` to dive deeper.
   - [`Asynkron.OtelReceiver/context.md`](Asynkron.OtelReceiver/context.md)
+  - [`Asynkron.JsEngine/context.md`](Asynkron.JsEngine/context.md)

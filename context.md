@@ -6,6 +6,7 @@ This repository hosts the **Asynkron OTLP Receiver**, a .NET 8 solution for inge
 - [`Asynkron.OTelMCP.sln`](Asynkron.OTelMCP.sln) – unified solution file containing both the OtelMCP receiver and the AspireShop sample application. This is the primary entry point for building the entire codebase.
 - [`Asynkron.OtelReceiver.sln`](Asynkron.OtelReceiver.sln) – legacy solution file for building only the receiver and associated tests.
 - [`src/context.md`](src/context.md) – code for the ASP.NET Core receiver, TraceLens utilities, database access, and generated OTLP protobuf definitions.
+- [`src/Asynkron.JsEngine/context.md`](src/Asynkron.JsEngine/context.md) – experimental Lisp-inspired JavaScript interpreter based on cons cells.
 - [`tests/context.md`](tests/context.md) – unit test projects that exercise the receiver infrastructure.
 - [`docker-compose.yml`](docker-compose.yml) – container recipe for the receiver with SQLite-backed storage.
 - [`docs/context.md`](docs/context.md) – repository guides and research notes, including integration walkthroughs.

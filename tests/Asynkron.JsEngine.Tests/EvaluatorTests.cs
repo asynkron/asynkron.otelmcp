@@ -71,10 +71,42 @@ public class EvaluatorTests
     }
 
     [Fact]
+    public void EvaluateArrayLiteralSupportsIndexing()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let values = [1, 2];
+values[2] = values[0] + values[1];
+let alias = values[""length""];
+let missing = values[5];
+if (missing == null) { missing = 1; } else { missing = 0; }
+alias + missing + values[2];
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(7d, result); // length reflects new entry and missing reads return null
+    }
+
+    [Fact]
     public void MethodInvocationBindsThis()
     {
         var engine = new JsEngine();
         var source = "let obj = { x: 10, f: function () { return this.x; } }; obj.f();";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(10d, result);
+    }
+
+    [Fact]
+    public void IndexedMethodInvocationBindsThis()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let obj = { value: 10, getter: function() { return this.value; } };
+obj[""getter""]();
+";
 
         var result = engine.Evaluate(source);
 

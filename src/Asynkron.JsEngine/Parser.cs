@@ -308,6 +308,13 @@ internal sealed class Parser
                 return Cons.FromEnumerable(new object?[] { JsSymbols.SetProperty, target, propertyName, value });
             }
 
+            if (expr is Cons { Head: Symbol indexHead } indexTarget && ReferenceEquals(indexHead, JsSymbols.GetIndex))
+            {
+                var target = indexTarget.Rest.Head;
+                var index = indexTarget.Rest.Rest.Head;
+                return Cons.FromEnumerable(new object?[] { JsSymbols.SetIndex, target, index, value });
+            }
+
             throw new ParseException($"Invalid assignment target near line {equals.Line} column {equals.Column}.");
         }
 
@@ -415,6 +422,12 @@ internal sealed class Parser
                 continue;
             }
 
+            if (Match(TokenType.LeftBracket))
+            {
+                expr = FinishIndex(expr);
+                continue;
+            }
+
             break;
         }
 
@@ -496,6 +509,11 @@ internal sealed class Parser
             return ParseObjectLiteral();
         }
 
+        if (Match(TokenType.LeftBracket))
+        {
+            return ParseArrayLiteral();
+        }
+
         if (Match(TokenType.LeftParen))
         {
             var expr = ParseExpression();
@@ -513,6 +531,11 @@ internal sealed class Parser
         while (Match(TokenType.Dot))
         {
             constructor = FinishGet(constructor);
+        }
+
+        while (Match(TokenType.LeftBracket))
+        {
+            constructor = FinishIndex(constructor);
         }
 
         var arguments = new List<object?>();
@@ -561,6 +584,23 @@ internal sealed class Parser
         return Cons.FromEnumerable(items);
     }
 
+    private object ParseArrayLiteral()
+    {
+        var elements = new List<object?>();
+        if (!Check(TokenType.RightBracket))
+        {
+            do
+            {
+                elements.Add(ParseExpression());
+            } while (Match(TokenType.Comma));
+        }
+
+        Consume(TokenType.RightBracket, "Expected ']' after array literal.");
+        var items = new List<object?> { JsSymbols.ArrayLiteral };
+        items.AddRange(elements);
+        return Cons.FromEnumerable(items);
+    }
+
     private string ParseObjectPropertyName()
     {
         if (Match(TokenType.String))
@@ -577,6 +617,13 @@ internal sealed class Parser
         var nameToken = Consume(TokenType.Identifier, "Expected property name after '.'.");
         var propertyName = nameToken.Lexeme;
         return Cons.FromEnumerable(new object?[] { JsSymbols.GetProperty, target, propertyName });
+    }
+
+    private object FinishIndex(object? target)
+    {
+        var indexExpression = ParseExpression();
+        Consume(TokenType.RightBracket, "Expected ']' after index expression.");
+        return Cons.FromEnumerable(new object?[] { JsSymbols.GetIndex, target, indexExpression });
     }
 
     private static Cons CreateDefaultConstructor(Symbol name)

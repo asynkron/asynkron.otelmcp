@@ -84,6 +84,36 @@ public class ParserTests
     }
 
     [Fact]
+    public void ParseArrayLiteralAndIndexedAssignment()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("let numbers = [1, 2, 3]; numbers[1] = numbers[0];");
+
+        var letStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Let, letStatement.Head);
+        Assert.Equal(Symbol.Intern("numbers"), letStatement.Rest.Head);
+
+        var arrayLiteral = Assert.IsType<Cons>(letStatement.Rest.Rest.Head);
+        Assert.Same(JsSymbols.ArrayLiteral, arrayLiteral.Head);
+        Assert.Equal(1d, arrayLiteral.Rest.Head);
+        Assert.Equal(2d, arrayLiteral.Rest.Rest.Head);
+        Assert.Equal(3d, arrayLiteral.Rest.Rest.Rest.Head);
+
+        var expressionStatement = Assert.IsType<Cons>(program.Rest.Rest.Head);
+        Assert.Same(JsSymbols.ExpressionStatement, expressionStatement.Head);
+
+        var setIndex = Assert.IsType<Cons>(expressionStatement.Rest.Head);
+        Assert.Same(JsSymbols.SetIndex, setIndex.Head);
+        Assert.Equal(Symbol.Intern("numbers"), setIndex.Rest.Head);
+        Assert.Equal(1d, setIndex.Rest.Rest.Head);
+
+        var valueExpression = Assert.IsType<Cons>(setIndex.Rest.Rest.Rest.Head);
+        Assert.Same(JsSymbols.GetIndex, valueExpression.Head); // ensure RHS preserves the index expression form
+        Assert.Equal(Symbol.Intern("numbers"), valueExpression.Rest.Head);
+        Assert.Equal(0d, valueExpression.Rest.Rest.Head);
+    }
+
+    [Fact]
     public void ParseNewExpression()
     {
         var engine = new JsEngine();

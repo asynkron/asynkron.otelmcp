@@ -351,9 +351,24 @@ internal static class Evaluator
             return EvaluateCall(cons, environment);
         }
 
+        if (ReferenceEquals(symbol, JsSymbols.ArrayLiteral))
+        {
+            return EvaluateArrayLiteral(cons, environment);
+        }
+
         if (ReferenceEquals(symbol, JsSymbols.ObjectLiteral))
         {
             return EvaluateObjectLiteral(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.GetIndex))
+        {
+            return EvaluateGetIndex(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.SetIndex))
+        {
+            return EvaluateSetIndex(cons, environment);
         }
 
         if (ReferenceEquals(symbol, JsSymbols.GetProperty))
@@ -429,7 +444,39 @@ internal static class Evaluator
             return (null, target);
         }
 
+        if (calleeExpression is Cons { Head: Symbol { } indexHead } indexCons && ReferenceEquals(indexHead, JsSymbols.GetIndex))
+        {
+            var targetExpression = indexCons.Rest.Head;
+            var indexExpression = indexCons.Rest.Rest.Head;
+            var target = EvaluateExpression(targetExpression, environment);
+            var index = EvaluateExpression(indexExpression, environment);
+
+            if (target is JsArray jsArray && TryConvertToIndex(index, out var arrayIndex))
+            {
+                return (jsArray.GetElement(arrayIndex), target);
+            }
+
+            var propertyName = ToPropertyName(index);
+            if (propertyName is not null && TryGetPropertyValue(target, propertyName, out var value))
+            {
+                return (value, target);
+            }
+
+            return (null, target);
+        }
+
         return (EvaluateExpression(calleeExpression, environment), null);
+    }
+
+    private static object EvaluateArrayLiteral(Cons cons, Environment environment)
+    {
+        var array = new JsArray();
+        foreach (var elementExpression in cons.Rest)
+        {
+            array.Push(EvaluateExpression(elementExpression, environment));
+        }
+
+        return array;
     }
 
     private static object EvaluateObjectLiteral(Cons cons, Environment environment)
@@ -478,6 +525,53 @@ internal static class Evaluator
         var valueExpression = cons.Rest.Rest.Rest.Head;
         var target = EvaluateExpression(targetExpression, environment);
         var value = EvaluateExpression(valueExpression, environment);
+        AssignPropertyValue(target, propertyName, value);
+        return value;
+    }
+
+    private static object? EvaluateGetIndex(Cons cons, Environment environment)
+    {
+        var targetExpression = cons.Rest.Head;
+        var indexExpression = cons.Rest.Rest.Head;
+
+        var target = EvaluateExpression(targetExpression, environment);
+        var indexValue = EvaluateExpression(indexExpression, environment);
+
+        if (target is JsArray jsArray && TryConvertToIndex(indexValue, out var arrayIndex))
+        {
+            return jsArray.GetElement(arrayIndex);
+        }
+
+        var propertyName = ToPropertyName(indexValue)
+            ?? throw new InvalidOperationException($"Unsupported index value '{indexValue}'.");
+
+        if (TryGetPropertyValue(target, propertyName, out var propertyValue))
+        {
+            return propertyValue;
+        }
+
+        throw new InvalidOperationException($"Cannot read property '{propertyName}' from value '{target}'.");
+    }
+
+    private static object? EvaluateSetIndex(Cons cons, Environment environment)
+    {
+        var targetExpression = cons.Rest.Head;
+        var indexExpression = cons.Rest.Rest.Head;
+        var valueExpression = cons.Rest.Rest.Rest.Head;
+
+        var target = EvaluateExpression(targetExpression, environment);
+        var indexValue = EvaluateExpression(indexExpression, environment);
+        var value = EvaluateExpression(valueExpression, environment);
+
+        if (target is JsArray jsArray && TryConvertToIndex(indexValue, out var arrayIndex))
+        {
+            jsArray.SetElement(arrayIndex, value);
+            return value;
+        }
+
+        var propertyName = ToPropertyName(indexValue)
+            ?? throw new InvalidOperationException($"Unsupported index value '{indexValue}'.");
+
         AssignPropertyValue(target, propertyName, value);
         return value;
     }
@@ -593,6 +687,8 @@ internal static class Evaluator
     {
         switch (target)
         {
+            case JsArray jsArray when jsArray.TryGetProperty(propertyName, out value):
+                return true;
             case JsObject jsObject when jsObject.TryGetProperty(propertyName, out value):
                 return true;
             case JsFunction function when function.TryGetProperty(propertyName, out value):
@@ -611,6 +707,9 @@ internal static class Evaluator
     {
         switch (target)
         {
+            case JsArray jsArray:
+                jsArray.SetProperty(propertyName, value);
+                break;
             case JsObject jsObject:
                 jsObject.SetProperty(propertyName, value);
                 break;
@@ -627,4 +726,44 @@ internal static class Evaluator
                 throw new InvalidOperationException($"Cannot assign property '{propertyName}' on value '{target}'.");
         }
     }
+
+    private static bool TryConvertToIndex(object? value, out int index)
+    {
+        switch (value)
+        {
+            case int i when i >= 0:
+                index = i;
+                return true;
+            case long l when l >= 0 && l <= int.MaxValue:
+                index = (int)l;
+                return true;
+            case double d when !double.IsNaN(d) && !double.IsInfinity(d):
+                var truncated = Math.Truncate(d);
+                if (Math.Abs(d - truncated) < double.Epsilon && truncated >= 0 && truncated <= int.MaxValue)
+                {
+                    index = (int)truncated;
+                    return true;
+                }
+
+                break;
+            case string s when int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed >= 0:
+                index = parsed;
+                return true;
+        }
+
+        index = 0;
+        return false;
+    }
+
+    private static string? ToPropertyName(object? value) => value switch
+    {
+        null => "null",
+        string s => s,
+        Symbol symbol => symbol.Name,
+        bool b => b ? "true" : "false",
+        int i => i.ToString(CultureInfo.InvariantCulture),
+        long l => l.ToString(CultureInfo.InvariantCulture),
+        double d when !double.IsNaN(d) && !double.IsInfinity(d) => d.ToString(CultureInfo.InvariantCulture),
+        _ => Convert.ToString(value, CultureInfo.InvariantCulture)
+    };
 }

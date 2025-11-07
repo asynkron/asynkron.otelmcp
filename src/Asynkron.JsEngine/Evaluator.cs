@@ -150,6 +150,16 @@ internal static class Evaluator
             return EvaluateCall(cons, environment);
         }
 
+        if (ReferenceEquals(symbol, JsSymbols.ObjectLiteral))
+        {
+            return EvaluateObjectLiteral(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.GetProperty))
+        {
+            return EvaluateGetProperty(cons, environment);
+        }
+
         if (ReferenceEquals(symbol, JsSymbols.Negate))
         {
             var operand = EvaluateExpression(cons.Rest.Head, environment);
@@ -189,6 +199,43 @@ internal static class Evaluator
         }
 
         return callable.Invoke(arguments);
+    }
+
+    private static object EvaluateObjectLiteral(Cons cons, Environment environment)
+    {
+        var result = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var propertyExpression in cons.Rest)
+        {
+            var propertyCons = ExpectCons(propertyExpression, "Expected property description in object literal.");
+            if (propertyCons.Head is not Symbol { } propertyTag || !ReferenceEquals(propertyTag, JsSymbols.Property))
+            {
+                throw new InvalidOperationException("Object literal entries must begin with the 'prop' symbol.");
+            }
+
+            var propertyName = propertyCons.Rest.Head as string
+                ?? throw new InvalidOperationException("Object literal property name must be a string.");
+
+            var valueExpression = propertyCons.Rest.Rest.Head;
+            var value = EvaluateExpression(valueExpression, environment);
+            result[propertyName] = value;
+        }
+
+        return result;
+    }
+
+    private static object? EvaluateGetProperty(Cons cons, Environment environment)
+    {
+        var targetExpression = cons.Rest.Head;
+        var propertyName = cons.Rest.Rest.Head as string
+            ?? throw new InvalidOperationException("Property access requires a string name.");
+
+        var target = EvaluateExpression(targetExpression, environment);
+        if (target is IDictionary<string, object?> dictionary)
+        {
+            return dictionary.TryGetValue(propertyName, out var value) ? value : null;
+        }
+
+        throw new InvalidOperationException($"Cannot read property '{propertyName}' from value '{target}'.");
     }
 
     private static object? EvaluateBinary(Cons cons, Environment environment, Symbol operatorSymbol)

@@ -237,9 +237,21 @@ internal sealed class Parser
     private object? ParseCall()
     {
         var expr = ParsePrimary();
-        while (Match(TokenType.LeftParen))
+        while (true)
         {
-            expr = FinishCall(expr);
+            if (Match(TokenType.LeftParen))
+            {
+                expr = FinishCall(expr);
+                continue;
+            }
+
+            if (Match(TokenType.Dot))
+            {
+                expr = FinishGet(expr);
+                continue;
+            }
+
+            break;
         }
 
         return expr;
@@ -300,6 +312,11 @@ internal sealed class Parser
             return ParseFunctionExpression();
         }
 
+        if (Match(TokenType.LeftBrace))
+        {
+            return ParseObjectLiteral();
+        }
+
         if (Match(TokenType.LeftParen))
         {
             var expr = ParseExpression();
@@ -323,6 +340,44 @@ internal sealed class Parser
         Consume(TokenType.RightParen, "Expected ')' after lambda parameters.");
         var body = ParseBlock();
         return Cons.FromEnumerable(new object?[] { JsSymbols.Lambda, name, parameters, body });
+    }
+
+    private object ParseObjectLiteral()
+    {
+        var properties = new List<object?>();
+        if (!Check(TokenType.RightBrace))
+        {
+            do
+            {
+                var name = ParseObjectPropertyName();
+                Consume(TokenType.Colon, "Expected ':' after property name.");
+                var value = ParseExpression();
+                properties.Add(Cons.FromEnumerable(new object?[] { JsSymbols.Property, name, value }));
+            } while (Match(TokenType.Comma));
+        }
+
+        Consume(TokenType.RightBrace, "Expected '}' after object literal.");
+        var items = new List<object?> { JsSymbols.ObjectLiteral };
+        items.AddRange(properties);
+        return Cons.FromEnumerable(items);
+    }
+
+    private string ParseObjectPropertyName()
+    {
+        if (Match(TokenType.String))
+        {
+            return Previous().Literal as string ?? string.Empty;
+        }
+
+        var identifier = Consume(TokenType.Identifier, "Expected property name.");
+        return identifier.Lexeme;
+    }
+
+    private object FinishGet(object? target)
+    {
+        var nameToken = Consume(TokenType.Identifier, "Expected property name after '.'.");
+        var propertyName = nameToken.Lexeme;
+        return Cons.FromEnumerable(new object?[] { JsSymbols.GetProperty, target, propertyName });
     }
 
     private bool Match(params TokenType[] types)

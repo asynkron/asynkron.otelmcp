@@ -7,6 +7,8 @@ internal enum TokenType
     LeftBrace,
     RightBrace,
     Comma,
+    Colon,
+    Dot,
     Semicolon,
     Plus,
     Minus,

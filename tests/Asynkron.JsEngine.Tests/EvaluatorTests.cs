@@ -58,4 +58,15 @@ public class EvaluatorTests
             item => Assert.Equal(3d, item),
             item => Assert.Equal("world", item));
     }
+
+    [Fact]
+    public void EvaluateObjectLiteralAndPropertyUsage()
+    {
+        var engine = new JsEngine();
+        var source = "let obj = { a: 10, x: function () { return 5; } }; let total = obj.a + obj.x(); total;";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(15d, result); // object property read plus function invocation
+    }
 }

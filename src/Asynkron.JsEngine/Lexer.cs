@@ -58,11 +58,17 @@ internal sealed class Lexer
             case ',':
                 AddToken(TokenType.Comma);
                 break;
+            case ':':
+                AddToken(TokenType.Colon);
+                break;
             case ';':
                 AddToken(TokenType.Semicolon);
                 break;
             case '+':
                 AddToken(TokenType.Plus);
+                break;
+            case '.':
+                AddToken(TokenType.Dot);
                 break;
             case '-':
                 AddToken(TokenType.Minus);

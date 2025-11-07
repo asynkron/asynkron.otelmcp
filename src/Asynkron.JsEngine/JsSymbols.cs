@@ -11,6 +11,7 @@ public static class JsSymbols
     public static readonly Symbol Const = Symbol.Intern("const");
     public static readonly Symbol Function = Symbol.Intern("function");
     public static readonly Symbol Class = Symbol.Intern("class");
+    public static readonly Symbol Extends = Symbol.Intern("extends");
     public static readonly Symbol Block = Symbol.Intern("block");
     public static readonly Symbol Return = Symbol.Intern("return");
     public static readonly Symbol ExpressionStatement = Symbol.Intern("expr-stmt");
@@ -40,6 +41,7 @@ public static class JsSymbols
     public static readonly Symbol GetIndex = Symbol.Intern("get-index");
     public static readonly Symbol SetIndex = Symbol.Intern("set-index");
     public static readonly Symbol This = Symbol.Intern("this");
+    public static readonly Symbol Super = Symbol.Intern("super");
     public static readonly Symbol New = Symbol.Intern("new");
     public static readonly Symbol Uninitialized = Symbol.Intern("<uninitialized>");
 

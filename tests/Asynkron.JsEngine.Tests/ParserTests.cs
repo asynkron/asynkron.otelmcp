@@ -226,7 +226,9 @@ public class ParserTests
         Assert.Same(JsSymbols.Class, classStatement.Head);
         Assert.Equal(Symbol.Intern("Counter"), classStatement.Rest.Head);
 
-        var constructor = Assert.IsType<Cons>(classStatement.Rest.Rest.Head);
+        Assert.Null(classStatement.Rest.Rest.Head); // no extends clause
+
+        var constructor = Assert.IsType<Cons>(classStatement.Rest.Rest.Rest.Head);
         Assert.Same(JsSymbols.Lambda, constructor.Head);
         Assert.Equal(Symbol.Intern("Counter"), constructor.Rest.Head); // constructor keeps the class name for recursion
 
@@ -236,7 +238,7 @@ public class ParserTests
         var constructorBody = Assert.IsType<Cons>(constructor.Rest.Rest.Rest.Head);
         Assert.Same(JsSymbols.Block, constructorBody.Head);
 
-        var methods = Assert.IsType<Cons>(classStatement.Rest.Rest.Rest.Head);
+        var methods = Assert.IsType<Cons>(classStatement.Rest.Rest.Rest.Rest.Head);
         var methodEntry = Assert.IsType<Cons>(methods.Head);
         Assert.Same(JsSymbols.Method, methodEntry.Head);
         Assert.Equal("increment", methodEntry.Rest.Head);
@@ -244,6 +246,24 @@ public class ParserTests
         var methodLambda = Assert.IsType<Cons>(methodEntry.Rest.Rest.Head);
         Assert.Same(JsSymbols.Lambda, methodLambda.Head);
         Assert.Null(methodLambda.Rest.Head); // class methods stay anonymous like standard method syntax
+    }
+
+    [Fact]
+    public void ParseClassDeclarationCapturesExtendsClause()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("class Derived extends Base.Type { method() { return super.method(); } }");
+
+        var classStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Class, classStatement.Head);
+
+        var extendsClause = Assert.IsType<Cons>(classStatement.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Extends, extendsClause.Head);
+
+        var baseReference = Assert.IsType<Cons>(extendsClause.Rest.Head);
+        Assert.Same(JsSymbols.GetProperty, baseReference.Head);
+        Assert.Equal(Symbol.Intern("Base"), baseReference.Rest.Head);
+        Assert.Equal("Type", baseReference.Rest.Rest.Head);
     }
 
     [Fact]

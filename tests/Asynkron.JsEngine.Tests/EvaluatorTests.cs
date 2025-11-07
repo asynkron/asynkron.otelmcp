@@ -405,6 +405,41 @@ Widget.prototype.constructor == Widget;
     }
 
     [Fact]
+    public void ClassInheritanceSupportsSuperConstructorAndMethodCalls()
+    {
+        var engine = new JsEngine();
+        var source = @"
+class Base {
+    constructor(value) {
+        this.base = value;
+    }
+
+    read() {
+        return this.base;
+    }
+}
+
+class Derived extends Base {
+    constructor(value) {
+        super(value + 1); // forward to the base constructor with a transformed argument
+        this.extra = 5;
+    }
+
+    read() {
+        return super.read() + this.extra; // reuse the base implementation and add derived state
+    }
+}
+
+let instance = new Derived(2);
+instance.read();
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(8d, result);
+    }
+
+    [Fact]
     public void EvaluateIfElseAndBlockScopes()
     {
         var engine = new JsEngine();

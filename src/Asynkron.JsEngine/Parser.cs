@@ -67,7 +67,15 @@ internal sealed class Parser
     {
         var nameToken = Consume(TokenType.Identifier, "Expected class name.");
         var name = Symbol.Intern(nameToken.Lexeme);
-        Consume(TokenType.LeftBrace, "Expected '{' after class name.");
+
+        Cons? extendsClause = null;
+        if (Match(TokenType.Extends))
+        {
+            var baseExpression = ParseExpression();
+            extendsClause = Cons.FromEnumerable(new object?[] { JsSymbols.Extends, baseExpression });
+        }
+
+        Consume(TokenType.LeftBrace, "Expected '{' after class name or extends clause.");
 
         Cons? constructor = null;
         var methods = new List<object?>();
@@ -107,7 +115,7 @@ internal sealed class Parser
         constructor ??= CreateDefaultConstructor(name);
         var methodList = Cons.FromEnumerable(methods);
 
-        return Cons.FromEnumerable(new object?[] { JsSymbols.Class, name, constructor, methodList });
+        return Cons.FromEnumerable(new object?[] { JsSymbols.Class, name, extendsClause, constructor, methodList });
     }
 
     private Cons ParseParameterList()
@@ -740,6 +748,11 @@ internal sealed class Parser
         if (Match(TokenType.This))
         {
             return JsSymbols.This;
+        }
+
+        if (Match(TokenType.Super))
+        {
+            return JsSymbols.Super;
         }
 
         if (Match(TokenType.Function))

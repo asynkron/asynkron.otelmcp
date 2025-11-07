@@ -7,6 +7,8 @@ internal sealed class JsFunction : IJsCallable
     private readonly Cons _body;
     private readonly Environment _closure;
     private readonly JsObject _properties = new();
+    private JsFunction? _superConstructor;
+    private JsObject? _superPrototype;
 
     public JsFunction(Symbol? name, IReadOnlyList<Symbol> parameters, Cons body, Environment closure)
     {
@@ -39,6 +41,12 @@ internal sealed class JsFunction : IJsCallable
             environment.Define(_name, this);
         }
 
+        if (_superConstructor is not null || _superPrototype is not null)
+        {
+            var binding = new SuperBinding(_superConstructor, _superPrototype, thisValue);
+            environment.Define(JsSymbols.Super, binding);
+        }
+
         try
         {
             return Evaluator.EvaluateBlock(_body, environment);
@@ -52,4 +60,10 @@ internal sealed class JsFunction : IJsCallable
     public bool TryGetProperty(string name, out object? value) => _properties.TryGetProperty(name, out value);
 
     public void SetProperty(string name, object? value) => _properties.SetProperty(name, value);
+
+    public void SetSuperBinding(JsFunction? superConstructor, JsObject? superPrototype)
+    {
+        _superConstructor = superConstructor;
+        _superPrototype = superPrototype;
+    }
 }

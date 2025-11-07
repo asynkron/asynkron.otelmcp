@@ -415,8 +415,11 @@ internal static class Evaluator
     private static object? EvaluateClass(Cons cons, Environment environment)
     {
         var name = ExpectSymbol(cons.Rest.Head, "Expected class name symbol.");
-        var constructorExpression = cons.Rest.Rest.Head;
-        var methodsList = ExpectCons(cons.Rest.Rest.Rest.Head, "Expected class body list.");
+        var extendsEntry = cons.Rest.Rest.Head;
+        var constructorExpression = cons.Rest.Rest.Rest.Head;
+        var methodsList = ExpectCons(cons.Rest.Rest.Rest.Rest.Head, "Expected class body list.");
+
+        var (superConstructor, superPrototype) = ResolveSuperclass(extendsEntry, environment);
 
         var constructorValue = EvaluateExpression(constructorExpression, environment);
         if (constructorValue is not JsFunction constructor)
@@ -430,6 +433,20 @@ internal static class Evaluator
         {
             prototype = new JsObject();
             constructor.SetProperty("prototype", prototype);
+        }
+
+        if (superPrototype is not null)
+        {
+            prototype.SetPrototype(superPrototype);
+        }
+
+        if (superConstructor is not null || superPrototype is not null)
+        {
+            constructor.SetSuperBinding(superConstructor, superPrototype);
+            if (superConstructor is not null)
+            {
+                constructor.SetProperty("__proto__", superConstructor);
+            }
         }
 
         prototype.SetProperty("constructor", constructor);
@@ -453,10 +470,51 @@ internal static class Evaluator
                 throw new InvalidOperationException($"Class method '{methodName}' must be callable.");
             }
 
+            if (methodValue is JsFunction methodFunction)
+            {
+                methodFunction.SetSuperBinding(superConstructor, superPrototype);
+            }
+
             prototype.SetProperty(methodName, methodValue);
         }
 
         return constructor;
+    }
+
+    private static (JsFunction? Constructor, JsObject? Prototype) ResolveSuperclass(object? extendsEntry, Environment environment)
+    {
+        if (extendsEntry is null)
+        {
+            return (null, null);
+        }
+
+        var extendsCons = ExpectCons(extendsEntry, "Expected extends clause structure.");
+        var tag = ExpectSymbol(extendsCons.Head, "Expected extends tag.");
+        if (!ReferenceEquals(tag, JsSymbols.Extends))
+        {
+            throw new InvalidOperationException("Malformed extends clause.");
+        }
+
+        var baseExpression = extendsCons.Rest.Head;
+        var baseValue = EvaluateExpression(baseExpression, environment);
+
+        if (baseValue is null)
+        {
+            return (null, null);
+        }
+
+        if (baseValue is not JsFunction baseConstructor)
+        {
+            throw new InvalidOperationException("Classes can only extend other constructors (or null).");
+        }
+
+        if (!baseConstructor.TryGetProperty("prototype", out var prototypeValue) || prototypeValue is not JsObject basePrototype)
+        {
+            basePrototype = new JsObject();
+            baseConstructor.SetProperty("prototype", basePrototype);
+        }
+
+        return (baseConstructor, basePrototype);
     }
 
     private static object? EvaluateReturn(Cons cons, Environment environment)
@@ -613,11 +671,33 @@ internal static class Evaluator
 
     private static (object? Callee, object? ThisValue) ResolveCallee(object? calleeExpression, Environment environment)
     {
+        if (calleeExpression is Symbol { } superSymbol && ReferenceEquals(superSymbol, JsSymbols.Super))
+        {
+            var binding = ExpectSuperBinding(environment);
+            if (binding.Constructor is null)
+            {
+                throw new InvalidOperationException("Super constructor is not available in this context.");
+            }
+
+            return (binding.Constructor, binding.ThisValue);
+        }
+
         if (calleeExpression is Cons { Head: Symbol { } head } propertyCons && ReferenceEquals(head, JsSymbols.GetProperty))
         {
             var targetExpression = propertyCons.Rest.Head;
             var propertyName = propertyCons.Rest.Rest.Head as string
                 ?? throw new InvalidOperationException("Property access requires a string name.");
+
+            if (targetExpression is Symbol { } targetSymbol && ReferenceEquals(targetSymbol, JsSymbols.Super))
+            {
+                var binding = ExpectSuperBinding(environment);
+                if (binding.TryGetProperty(propertyName, out var superValue))
+                {
+                    return (superValue, binding.ThisValue);
+                }
+
+                return (null, binding.ThisValue);
+            }
 
             var target = EvaluateExpression(targetExpression, environment);
             if (TryGetPropertyValue(target, propertyName, out var value))
@@ -632,6 +712,22 @@ internal static class Evaluator
         {
             var targetExpression = indexCons.Rest.Head;
             var indexExpression = indexCons.Rest.Rest.Head;
+
+            if (targetExpression is Symbol { } indexTargetSymbol && ReferenceEquals(indexTargetSymbol, JsSymbols.Super))
+            {
+                var binding = ExpectSuperBinding(environment);
+                var superIndex = EvaluateExpression(indexExpression, environment);
+                var superPropertyName = ToPropertyName(superIndex)
+                    ?? throw new InvalidOperationException($"Unsupported index value '{superIndex}'.");
+
+                if (binding.TryGetProperty(superPropertyName, out var superValue))
+                {
+                    return (superValue, binding.ThisValue);
+                }
+
+                return (null, binding.ThisValue);
+            }
+
             var target = EvaluateExpression(targetExpression, environment);
             var index = EvaluateExpression(indexExpression, environment);
 
@@ -691,6 +787,17 @@ internal static class Evaluator
         var propertyName = cons.Rest.Rest.Head as string
             ?? throw new InvalidOperationException("Property access requires a string name.");
 
+        if (targetExpression is Symbol { } superSymbol && ReferenceEquals(superSymbol, JsSymbols.Super))
+        {
+            var binding = ExpectSuperBinding(environment);
+            if (binding.TryGetProperty(propertyName, out var superValue))
+            {
+                return superValue;
+            }
+
+            throw new InvalidOperationException($"Cannot read property '{propertyName}' from super prototype.");
+        }
+
         var target = EvaluateExpression(targetExpression, environment);
         if (TryGetPropertyValue(target, propertyName, out var value))
         {
@@ -706,6 +813,11 @@ internal static class Evaluator
         var propertyName = cons.Rest.Rest.Head as string
             ?? throw new InvalidOperationException("Property assignment requires a string name.");
 
+        if (targetExpression is Symbol { } superSymbol && ReferenceEquals(superSymbol, JsSymbols.Super))
+        {
+            throw new InvalidOperationException("Assigning through super is not supported in this interpreter.");
+        }
+
         var valueExpression = cons.Rest.Rest.Rest.Head;
         var target = EvaluateExpression(targetExpression, environment);
         var value = EvaluateExpression(valueExpression, environment);
@@ -717,6 +829,21 @@ internal static class Evaluator
     {
         var targetExpression = cons.Rest.Head;
         var indexExpression = cons.Rest.Rest.Head;
+
+        if (targetExpression is Symbol { } superSymbol && ReferenceEquals(superSymbol, JsSymbols.Super))
+        {
+            var binding = ExpectSuperBinding(environment);
+            var superIndexValue = EvaluateExpression(indexExpression, environment);
+            var superPropertyName = ToPropertyName(superIndexValue)
+                ?? throw new InvalidOperationException($"Unsupported index value '{superIndexValue}'.");
+
+            if (binding.TryGetProperty(superPropertyName, out var superPropertyValue))
+            {
+                return superPropertyValue;
+            }
+
+            throw new InvalidOperationException($"Cannot read property '{superPropertyName}' from super prototype.");
+        }
 
         var target = EvaluateExpression(targetExpression, environment);
         var indexValue = EvaluateExpression(indexExpression, environment);
@@ -742,6 +869,11 @@ internal static class Evaluator
         var targetExpression = cons.Rest.Head;
         var indexExpression = cons.Rest.Rest.Head;
         var valueExpression = cons.Rest.Rest.Rest.Head;
+
+        if (targetExpression is Symbol { } superSymbol && ReferenceEquals(superSymbol, JsSymbols.Super))
+        {
+            throw new InvalidOperationException("Assigning through super is not supported in this interpreter.");
+        }
 
         var target = EvaluateExpression(targetExpression, environment);
         var indexValue = EvaluateExpression(indexExpression, environment);
@@ -851,6 +983,26 @@ internal static class Evaluator
 
     private static Cons ExpectCons(object? value, string message)
         => value is Cons cons ? cons : throw new InvalidOperationException(message);
+
+    private static SuperBinding ExpectSuperBinding(Environment environment)
+    {
+        object? value;
+        try
+        {
+            value = environment.Get(JsSymbols.Super);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new InvalidOperationException("Super is not available in this context.", ex);
+        }
+
+        if (value is not SuperBinding binding)
+        {
+            throw new InvalidOperationException("Super is not available in this context.");
+        }
+
+        return binding;
+    }
 
     private static bool IsTruthy(object? value) => value switch
     {

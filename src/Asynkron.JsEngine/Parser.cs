@@ -172,6 +172,11 @@ internal sealed class Parser
 
     private object ParseStatement()
     {
+        if (Match(TokenType.Try))
+        {
+            return ParseTryStatement();
+        }
+
         if (Match(TokenType.Switch))
         {
             return ParseSwitchStatement();
@@ -212,6 +217,11 @@ internal sealed class Parser
         if (Match(TokenType.Return))
         {
             return ParseReturnStatement();
+        }
+
+        if (Match(TokenType.Throw))
+        {
+            return ParseThrowStatement();
         }
 
         if (Match(TokenType.LeftBrace))
@@ -285,6 +295,46 @@ internal sealed class Parser
         }
 
         return Cons.FromEnumerable(statements);
+    }
+
+    private object ParseTryStatement()
+    {
+        var tryBlock = ParseBlock();
+
+        Cons? catchClause = null;
+        if (Match(TokenType.Catch))
+        {
+            Consume(TokenType.LeftParen, "Expected '(' after 'catch'.");
+            var identifier = Consume(TokenType.Identifier, "Expected identifier in catch clause.");
+            var catchSymbol = Symbol.Intern(identifier.Lexeme);
+            Consume(TokenType.RightParen, "Expected ')' after catch parameter.");
+            var catchBlock = ParseBlock();
+            catchClause = Cons.FromEnumerable(new object?[]
+            {
+                JsSymbols.Catch,
+                catchSymbol,
+                catchBlock
+            });
+        }
+
+        Cons? finallyBlock = null;
+        if (Match(TokenType.Finally))
+        {
+            finallyBlock = ParseBlock();
+        }
+
+        if (catchClause is null && finallyBlock is null)
+        {
+            throw new ParseException("Try statement requires at least a catch or finally clause.");
+        }
+
+        return Cons.FromEnumerable(new object?[]
+        {
+            JsSymbols.Try,
+            tryBlock,
+            catchClause,
+            finallyBlock
+        });
     }
 
     private object ParseIfStatement()
@@ -382,6 +432,13 @@ internal sealed class Parser
         return hasValue
             ? Cons.FromEnumerable(new object?[] { JsSymbols.Return, value })
             : Cons.FromEnumerable(new object?[] { JsSymbols.Return });
+    }
+
+    private object ParseThrowStatement()
+    {
+        var value = ParseExpression();
+        Consume(TokenType.Semicolon, "Expected ';' after throw statement.");
+        return Cons.FromEnumerable(new object?[] { JsSymbols.Throw, value });
     }
 
     private object ParseExpressionStatement()

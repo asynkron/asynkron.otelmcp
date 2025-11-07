@@ -89,6 +89,11 @@ internal static class Evaluator
             return EvaluateSwitch(cons, environment);
         }
 
+        if (ReferenceEquals(symbol, JsSymbols.Try))
+        {
+            return EvaluateTry(cons, environment);
+        }
+
         if (ReferenceEquals(symbol, JsSymbols.While))
         {
             return EvaluateWhile(cons, environment);
@@ -112,6 +117,11 @@ internal static class Evaluator
         if (ReferenceEquals(symbol, JsSymbols.Return))
         {
             return EvaluateReturn(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.Throw))
+        {
+            return EvaluateThrow(cons, environment);
         }
 
         if (ReferenceEquals(symbol, JsSymbols.ExpressionStatement))
@@ -324,6 +334,46 @@ internal static class Evaluator
         return result;
     }
 
+    private static object? EvaluateTry(Cons cons, Environment environment)
+    {
+        var tryStatement = cons.Rest.Head;
+        var catchClause = cons.Rest.Rest.Head;
+        var finallyClause = cons.Rest.Rest.Rest.Head;
+
+        ThrowSignal? pendingThrow = null;
+        object? result = null;
+
+        try
+        {
+            result = EvaluateStatement(tryStatement, environment);
+        }
+        catch (ThrowSignal signal)
+        {
+            if (catchClause is Cons catchCons && ReferenceEquals(catchCons.Head, JsSymbols.Catch))
+            {
+                result = ExecuteCatchClause(catchCons, signal.Value, environment);
+            }
+            else
+            {
+                pendingThrow = signal;
+            }
+        }
+        finally
+        {
+            if (finallyClause is Cons finallyCons)
+            {
+                EvaluateStatement(finallyCons, environment);
+            }
+        }
+
+        if (pendingThrow is not null)
+        {
+            throw pendingThrow;
+        }
+
+        return result;
+    }
+
     private static object? EvaluateLet(Cons cons, Environment environment)
     {
         var name = ExpectSymbol(cons.Rest.Head, "Expected identifier in let declaration.");
@@ -418,6 +468,29 @@ internal static class Evaluator
 
         var value = EvaluateExpression(cons.Rest.Head, environment);
         throw new ReturnSignal(value);
+    }
+
+    private static object? EvaluateThrow(Cons cons, Environment environment)
+    {
+        var valueExpression = cons.Rest.Head;
+        var value = EvaluateExpression(valueExpression, environment);
+        throw new ThrowSignal(value);
+    }
+
+    private static object? ExecuteCatchClause(Cons catchClause, object? thrownValue, Environment environment)
+    {
+        var tag = ExpectSymbol(catchClause.Head, "Expected catch clause tag.");
+        if (!ReferenceEquals(tag, JsSymbols.Catch))
+        {
+            throw new InvalidOperationException("Malformed catch clause.");
+        }
+
+        var binding = ExpectSymbol(catchClause.Rest.Head, "Expected catch binding symbol.");
+        var body = ExpectCons(catchClause.Rest.Rest.Head, "Expected catch block.");
+
+        var catchEnvironment = new Environment(environment);
+        catchEnvironment.Define(binding, thrownValue);
+        return EvaluateStatement(body, catchEnvironment);
     }
 
     private static object? EvaluateExpression(object? expression, Environment environment)

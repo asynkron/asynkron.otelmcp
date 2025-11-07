@@ -219,6 +219,44 @@ public class ParserTests
     }
 
     [Fact]
+    public void ParseTryCatchFinallyStatement()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("try { action(); } catch (err) { handle(err); } finally { cleanup(); }");
+
+        var tryStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Try, tryStatement.Head);
+
+        var tryBlock = Assert.IsType<Cons>(tryStatement.Rest.Head);
+        Assert.Same(JsSymbols.Block, tryBlock.Head);
+
+        var catchClause = Assert.IsType<Cons>(tryStatement.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Catch, catchClause.Head);
+        Assert.Equal(Symbol.Intern("err"), catchClause.Rest.Head);
+
+        var catchBlock = Assert.IsType<Cons>(catchClause.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Block, catchBlock.Head);
+
+        var finallyBlock = Assert.IsType<Cons>(tryStatement.Rest.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Block, finallyBlock.Head);
+    }
+
+    [Fact]
+    public void ParseTryFinallyWithoutCatchStoresNullCatch()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("try { work(); } finally { tidy(); }");
+
+        var tryStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Try, tryStatement.Head);
+
+        Assert.Null(tryStatement.Rest.Rest.Head); // catch slot remains empty when no catch clause is provided
+
+        var finallyBlock = Assert.IsType<Cons>(tryStatement.Rest.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Block, finallyBlock.Head);
+    }
+
+    [Fact]
     public void ParseIfAndLoopStatements()
     {
         var engine = new JsEngine();

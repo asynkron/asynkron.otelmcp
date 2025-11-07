@@ -21,6 +21,9 @@ public static class JsSymbols
     public static readonly Symbol Switch = Symbol.Intern("switch");
     public static readonly Symbol Case = Symbol.Intern("case");
     public static readonly Symbol Default = Symbol.Intern("default");
+    public static readonly Symbol Try = Symbol.Intern("try");
+    public static readonly Symbol Catch = Symbol.Intern("catch");
+    public static readonly Symbol Throw = Symbol.Intern("throw");
     public static readonly Symbol Break = Symbol.Intern("break");
     public static readonly Symbol Continue = Symbol.Intern("continue");
     public static readonly Symbol Assign = Symbol.Intern("assign");

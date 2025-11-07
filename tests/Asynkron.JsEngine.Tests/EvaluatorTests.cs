@@ -117,6 +117,66 @@ sample();
     }
 
     [Fact]
+    public void TryCatchFinallyBindsThrownValueAndRunsCleanup()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let captured = 0;
+try {
+    throw 21;
+} catch (err) {
+    captured = err;
+} finally {
+    captured = captured + 21;
+}
+captured;
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(42d, result); // catch observes thrown value and finally still executes
+    }
+
+    [Fact]
+    public void FinallyRunsForUnhandledThrow()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let cleanup = 0;
+try {
+    throw ""boom"";
+} finally {
+    cleanup = cleanup + 1;
+}
+";
+
+        Assert.ThrowsAny<Exception>(() => engine.Evaluate(source));
+
+        var cleanupValue = engine.Evaluate("cleanup;");
+        Assert.Equal(1d, cleanupValue); // finally executed even though the throw escaped
+    }
+
+    [Fact]
+    public void FinallyReturnOverridesTryReturn()
+    {
+        var engine = new JsEngine();
+        var source = @"
+function sample() {
+    try {
+        return 1;
+    } finally {
+        return 2;
+    }
+}
+sample();
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(2d, result); // return inside finally shadows earlier return
+    }
+
+    [Fact]
     public void MethodInvocationBindsThis()
     {
         var engine = new JsEngine();

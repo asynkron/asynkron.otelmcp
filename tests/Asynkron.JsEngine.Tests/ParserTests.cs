@@ -66,4 +66,42 @@ public class ParserTests
         Assert.Equal(Symbol.Intern("obj"), propertyAccess.Rest.Head);
         Assert.Equal("a", propertyAccess.Rest.Rest.Head);
     }
+
+    [Fact]
+    public void ParsePropertyAssignment()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("let obj = {}; obj.value = 5;");
+
+        var expressionStatement = Assert.IsType<Cons>(program.Rest.Rest.Head);
+        Assert.Same(JsSymbols.ExpressionStatement, expressionStatement.Head);
+
+        var assignment = Assert.IsType<Cons>(expressionStatement.Rest.Head);
+        Assert.Same(JsSymbols.SetProperty, assignment.Head);
+        Assert.Equal(Symbol.Intern("obj"), assignment.Rest.Head);
+        Assert.Equal("value", assignment.Rest.Rest.Head);
+        Assert.Equal(5d, assignment.Rest.Rest.Rest.Head);
+    }
+
+    [Fact]
+    public void ParseNewExpression()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("let instance = new Factory.Builder(1, 2); instance;");
+
+        var letStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Let, letStatement.Head);
+        Assert.Equal(Symbol.Intern("instance"), letStatement.Rest.Head);
+
+        var newExpression = Assert.IsType<Cons>(letStatement.Rest.Rest.Head);
+        Assert.Same(JsSymbols.New, newExpression.Head);
+
+        var constructor = Assert.IsType<Cons>(newExpression.Rest.Head);
+        Assert.Same(JsSymbols.GetProperty, constructor.Head);
+        Assert.Equal(Symbol.Intern("Factory"), constructor.Rest.Head);
+        Assert.Equal("Builder", constructor.Rest.Rest.Head);
+
+        Assert.Equal(1d, newExpression.Rest.Rest.Head);
+        Assert.Equal(2d, newExpression.Rest.Rest.Rest.Head);
+    }
 }

@@ -10,6 +10,7 @@ internal sealed class Lexer
         ["function"] = TokenType.Function,
         ["return"] = TokenType.Return,
         ["this"] = TokenType.This,
+        ["new"] = TokenType.New,
         ["true"] = TokenType.True,
         ["false"] = TokenType.False,
         ["null"] = TokenType.Null

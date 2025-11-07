@@ -89,8 +89,60 @@ public class EvaluatorTests
 
         var result = engine.Evaluate("let obj = { value: 42, reflect: reflectThis }; obj.reflect();");
 
-        var thisBinding = Assert.IsType<Dictionary<string, object?>>(result);
+        var thisBinding = Assert.IsAssignableFrom<IDictionary<string, object?>>(result);
         Assert.Equal(42d, thisBinding["value"]);
+    }
+
+    [Fact]
+    public void PrototypeLookupResolvesInheritedMethods()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let base = {
+    multiplier: 2,
+    calculate: function(value) { return value * this.multiplier; }
+};
+let derived = { value: 7, __proto__: base };
+derived.calculate(derived.value);
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(14d, result);
+    }
+
+    [Fact]
+    public void PrototypeAssignmentLinksObjectsAfterCreation()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let base = { greet: function() { return ""hi "" + this.name; } };
+let user = { name: ""Alice"" };
+user.__proto__ = base;
+user.greet();
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal("hi Alice", result);
+    }
+
+    [Fact]
+    public void NewCreatesInstancesWithConstructorPrototypes()
+    {
+        var engine = new JsEngine();
+        var source = @"
+function Person(name) {
+    this.name = name;
+}
+Person.prototype.describe = function() { return ""Person:"" + this.name; };
+let person = new Person(""Bob"");
+person.describe();
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal("Person:Bob", result);
     }
 
     [Fact]

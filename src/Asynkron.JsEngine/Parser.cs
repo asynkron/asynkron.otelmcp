@@ -144,6 +144,13 @@ internal sealed class Parser
                 return Cons.FromEnumerable(new object?[] { JsSymbols.Assign, symbol, value });
             }
 
+            if (expr is Cons { Head: Symbol head } assignmentTarget && ReferenceEquals(head, JsSymbols.GetProperty))
+            {
+                var target = assignmentTarget.Rest.Head;
+                var propertyName = assignmentTarget.Rest.Rest.Head;
+                return Cons.FromEnumerable(new object?[] { JsSymbols.SetProperty, target, propertyName, value });
+            }
+
             throw new ParseException($"Invalid assignment target near line {equals.Line} column {equals.Column}.");
         }
 
@@ -259,6 +266,14 @@ internal sealed class Parser
 
     private object FinishCall(object? callee)
     {
+        var arguments = ParseArgumentList();
+        var items = new List<object?> { JsSymbols.Call, callee };
+        items.AddRange(arguments);
+        return Cons.FromEnumerable(items);
+    }
+
+    private List<object?> ParseArgumentList()
+    {
         var arguments = new List<object?>();
         if (!Check(TokenType.RightParen))
         {
@@ -269,14 +284,16 @@ internal sealed class Parser
         }
 
         Consume(TokenType.RightParen, "Expected ')' after arguments.");
-
-        var items = new List<object?> { JsSymbols.Call, callee };
-        items.AddRange(arguments);
-        return Cons.FromEnumerable(items);
+        return arguments;
     }
 
     private object? ParsePrimary()
     {
+        if (Match(TokenType.New))
+        {
+            return ParseNewExpression();
+        }
+
         if (Match(TokenType.False))
         {
             return false;
@@ -330,6 +347,26 @@ internal sealed class Parser
         }
 
         throw new ParseException($"Unexpected token {Peek().Type} at line {Peek().Line} column {Peek().Column}.");
+    }
+
+    private object ParseNewExpression()
+    {
+        var constructor = ParsePrimary();
+
+        while (Match(TokenType.Dot))
+        {
+            constructor = FinishGet(constructor);
+        }
+
+        var arguments = new List<object?>();
+        if (Match(TokenType.LeftParen))
+        {
+            arguments = ParseArgumentList();
+        }
+
+        var items = new List<object?> { JsSymbols.New, constructor };
+        items.AddRange(arguments);
+        return Cons.FromEnumerable(items);
     }
 
     private object ParseFunctionExpression()

@@ -19,7 +19,9 @@ public static class JsSymbols
     public static readonly Symbol ObjectLiteral = Symbol.Intern("object");
     public static readonly Symbol Property = Symbol.Intern("prop");
     public static readonly Symbol GetProperty = Symbol.Intern("get-prop");
+    public static readonly Symbol SetProperty = Symbol.Intern("set-prop");
     public static readonly Symbol This = Symbol.Intern("this");
+    public static readonly Symbol New = Symbol.Intern("new");
 
     public static Symbol Operator(string op) => Symbol.Intern(op);
 }

@@ -29,6 +29,7 @@ internal enum TokenType
     Function,
     Return,
     This,
+    New,
     True,
     False,
     Null,

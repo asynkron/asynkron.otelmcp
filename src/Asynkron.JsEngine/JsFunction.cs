@@ -6,6 +6,7 @@ internal sealed class JsFunction : IJsCallable
     private readonly IReadOnlyList<Symbol> _parameters;
     private readonly Cons _body;
     private readonly Environment _closure;
+    private readonly JsObject _properties = new();
 
     public JsFunction(Symbol? name, IReadOnlyList<Symbol> parameters, Cons body, Environment closure)
     {
@@ -13,6 +14,9 @@ internal sealed class JsFunction : IJsCallable
         _parameters = parameters;
         _body = body;
         _closure = closure;
+
+        // Every function in JavaScript exposes a prototype object so instances created via `new` can inherit from it.
+        _properties.SetProperty("prototype", new JsObject());
     }
 
     public object? Invoke(IReadOnlyList<object?> arguments, object? thisValue)
@@ -44,4 +48,8 @@ internal sealed class JsFunction : IJsCallable
             return signal.Value;
         }
     }
+
+    public bool TryGetProperty(string name, out object? value) => _properties.TryGetProperty(name, out value);
+
+    public void SetProperty(string name, object? value) => _properties.SetProperty(name, value);
 }

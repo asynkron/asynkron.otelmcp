@@ -160,6 +160,16 @@ internal static class Evaluator
             return EvaluateGetProperty(cons, environment);
         }
 
+        if (ReferenceEquals(symbol, JsSymbols.SetProperty))
+        {
+            return EvaluateSetProperty(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.New))
+        {
+            return EvaluateNew(cons, environment);
+        }
+
         if (ReferenceEquals(symbol, JsSymbols.Negate))
         {
             var operand = EvaluateExpression(cons.Rest.Head, environment);
@@ -210,13 +220,12 @@ internal static class Evaluator
                 ?? throw new InvalidOperationException("Property access requires a string name.");
 
             var target = EvaluateExpression(targetExpression, environment);
-            if (target is IDictionary<string, object?> dictionary)
+            if (TryGetPropertyValue(target, propertyName, out var value))
             {
-                dictionary.TryGetValue(propertyName, out var value);
                 return (value, target);
             }
 
-            throw new InvalidOperationException($"Cannot read property '{propertyName}' from value '{target}'.");
+            return (null, target);
         }
 
         return (EvaluateExpression(calleeExpression, environment), null);
@@ -224,7 +233,7 @@ internal static class Evaluator
 
     private static object EvaluateObjectLiteral(Cons cons, Environment environment)
     {
-        var result = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var result = new JsObject();
         foreach (var propertyExpression in cons.Rest)
         {
             var propertyCons = ExpectCons(propertyExpression, "Expected property description in object literal.");
@@ -238,7 +247,7 @@ internal static class Evaluator
 
             var valueExpression = propertyCons.Rest.Rest.Head;
             var value = EvaluateExpression(valueExpression, environment);
-            result[propertyName] = value;
+            result.SetProperty(propertyName, value);
         }
 
         return result;
@@ -251,12 +260,55 @@ internal static class Evaluator
             ?? throw new InvalidOperationException("Property access requires a string name.");
 
         var target = EvaluateExpression(targetExpression, environment);
-        if (target is IDictionary<string, object?> dictionary)
+        if (TryGetPropertyValue(target, propertyName, out var value))
         {
-            return dictionary.TryGetValue(propertyName, out var value) ? value : null;
+            return value;
         }
 
         throw new InvalidOperationException($"Cannot read property '{propertyName}' from value '{target}'.");
+    }
+
+    private static object? EvaluateSetProperty(Cons cons, Environment environment)
+    {
+        var targetExpression = cons.Rest.Head;
+        var propertyName = cons.Rest.Rest.Head as string
+            ?? throw new InvalidOperationException("Property assignment requires a string name.");
+
+        var valueExpression = cons.Rest.Rest.Rest.Head;
+        var target = EvaluateExpression(targetExpression, environment);
+        var value = EvaluateExpression(valueExpression, environment);
+        AssignPropertyValue(target, propertyName, value);
+        return value;
+    }
+
+    private static object? EvaluateNew(Cons cons, Environment environment)
+    {
+        var constructorExpression = cons.Rest.Head;
+        var constructor = EvaluateExpression(constructorExpression, environment);
+        if (constructor is not IJsCallable callable)
+        {
+            throw new InvalidOperationException("Attempted to construct with a non-callable value.");
+        }
+
+        var instance = new JsObject();
+        if (TryGetPropertyValue(constructor, "prototype", out var prototype) && prototype is JsObject prototypeObject)
+        {
+            instance.SetPrototype(prototypeObject);
+        }
+
+        var arguments = new List<object?>();
+        foreach (var argumentExpression in cons.Rest.Rest)
+        {
+            arguments.Add(EvaluateExpression(argumentExpression, environment));
+        }
+
+        var result = callable.Invoke(arguments, instance);
+        return result switch
+        {
+            JsObject jsObject => jsObject,
+            IDictionary<string, object?> dictionary => dictionary,
+            _ => instance
+        };
     }
 
     private static object? EvaluateBinary(Cons cons, Environment environment, Symbol operatorSymbol)
@@ -335,4 +387,43 @@ internal static class Evaluator
         bool b => b ? "true" : "false",
         _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
     };
+
+    private static bool TryGetPropertyValue(object? target, string propertyName, out object? value)
+    {
+        switch (target)
+        {
+            case JsObject jsObject when jsObject.TryGetProperty(propertyName, out value):
+                return true;
+            case JsFunction function when function.TryGetProperty(propertyName, out value):
+                return true;
+            case HostFunction hostFunction when hostFunction.TryGetProperty(propertyName, out value):
+                return true;
+            case IDictionary<string, object?> dictionary when dictionary.TryGetValue(propertyName, out value):
+                return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static void AssignPropertyValue(object? target, string propertyName, object? value)
+    {
+        switch (target)
+        {
+            case JsObject jsObject:
+                jsObject.SetProperty(propertyName, value);
+                break;
+            case JsFunction function:
+                function.SetProperty(propertyName, value);
+                break;
+            case HostFunction hostFunction:
+                hostFunction.SetProperty(propertyName, value);
+                break;
+            case IDictionary<string, object?> dictionary:
+                dictionary[propertyName] = value;
+                break;
+            default:
+                throw new InvalidOperationException($"Cannot assign property '{propertyName}' on value '{target}'.");
+        }
+    }
 }

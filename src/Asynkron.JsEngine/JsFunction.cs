@@ -15,7 +15,7 @@ internal sealed class JsFunction : IJsCallable
         _closure = closure;
     }
 
-    public object? Invoke(IReadOnlyList<object?> arguments)
+    public object? Invoke(IReadOnlyList<object?> arguments, object? thisValue)
     {
         if (arguments.Count != _parameters.Count)
         {
@@ -27,6 +27,8 @@ internal sealed class JsFunction : IJsCallable
         {
             environment.Define(_parameters[i], arguments[i]);
         }
+
+        environment.Define(JsSymbols.This, thisValue);
 
         if (_name is not null)
         {

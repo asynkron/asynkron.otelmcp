@@ -28,6 +28,7 @@ internal enum TokenType
     Let,
     Function,
     Return,
+    This,
     True,
     False,
     Null,

@@ -29,7 +29,7 @@ public class ParserTests
     public void ParseObjectLiteralAndPropertyAccess()
     {
         var engine = new JsEngine();
-        var program = engine.Parse("let obj = { a: 10, x: function () { return 42; } }; obj.a;");
+        var program = engine.Parse("let obj = { a: 10, x: function () { return this.x; } }; obj.a;");
 
         var letStatement = Assert.IsType<Cons>(program.Rest.Head);
         Assert.Same(JsSymbols.Let, letStatement.Head);
@@ -47,6 +47,16 @@ public class ParserTests
         Assert.Equal("x", secondProperty.Rest.Head);
         var functionExpression = Assert.IsType<Cons>(secondProperty.Rest.Rest.Head);
         Assert.Same(JsSymbols.Lambda, functionExpression.Head); // ensure the function value stays a lambda expression
+
+        Assert.Null(functionExpression.Rest.Head); // anonymous function keeps null name slot
+        var body = Assert.IsType<Cons>(functionExpression.Rest.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Block, body.Head);
+        var returnStatement = Assert.IsType<Cons>(body.Rest.Head);
+        Assert.Same(JsSymbols.Return, returnStatement.Head);
+        var propertyAccessInReturn = Assert.IsType<Cons>(returnStatement.Rest.Head);
+        Assert.Same(JsSymbols.GetProperty, propertyAccessInReturn.Head);
+        Assert.Same(JsSymbols.This, propertyAccessInReturn.Rest.Head);
+        Assert.Equal("x", propertyAccessInReturn.Rest.Rest.Head);
 
         var expressionStatement = Assert.IsType<Cons>(program.Rest.Rest.Head);
         Assert.Same(JsSymbols.ExpressionStatement, expressionStatement.Head);

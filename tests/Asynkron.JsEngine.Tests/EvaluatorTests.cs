@@ -69,4 +69,27 @@ public class EvaluatorTests
 
         Assert.Equal(15d, result); // object property read plus function invocation
     }
+
+    [Fact]
+    public void MethodInvocationBindsThis()
+    {
+        var engine = new JsEngine();
+        var source = "let obj = { x: 10, f: function () { return this.x; } }; obj.f();";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(10d, result);
+    }
+
+    [Fact]
+    public void HostFunctionReceivesThisBinding()
+    {
+        var engine = new JsEngine();
+        engine.SetGlobalFunction("reflectThis", (self, _) => self);
+
+        var result = engine.Evaluate("let obj = { value: 42, reflect: reflectThis }; obj.reflect();");
+
+        var thisBinding = Assert.IsType<Dictionary<string, object?>>(result);
+        Assert.Equal(42d, thisBinding["value"]);
+    }
 }

@@ -307,6 +307,11 @@ internal sealed class Parser
             return Symbol.Intern(Previous().Lexeme);
         }
 
+        if (Match(TokenType.This))
+        {
+            return JsSymbols.This;
+        }
+
         if (Match(TokenType.Function))
         {
             return ParseFunctionExpression();

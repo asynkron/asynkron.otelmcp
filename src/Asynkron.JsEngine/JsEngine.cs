@@ -41,4 +41,10 @@ public sealed class JsEngine
     /// </summary>
     public void SetGlobalFunction(string name, Func<IReadOnlyList<object?>, object?> handler)
         => _global.Define(Symbol.Intern(name), new HostFunction(handler));
+
+    /// <summary>
+    /// Registers a host function that receives the <c>this</c> binding.
+    /// </summary>
+    public void SetGlobalFunction(string name, Func<object?, IReadOnlyList<object?>, object?> handler)
+        => _global.Define(Symbol.Intern(name), new HostFunction(handler));
 }

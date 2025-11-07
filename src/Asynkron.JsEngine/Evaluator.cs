@@ -186,7 +186,7 @@ internal static class Evaluator
     private static object? EvaluateCall(Cons cons, Environment environment)
     {
         var calleeExpression = cons.Rest.Head;
-        var callee = EvaluateExpression(calleeExpression, environment);
+        var (callee, thisValue) = ResolveCallee(calleeExpression, environment);
         if (callee is not IJsCallable callable)
         {
             throw new InvalidOperationException("Attempted to call a non-callable value.");
@@ -198,7 +198,28 @@ internal static class Evaluator
             arguments.Add(EvaluateExpression(argumentExpression, environment));
         }
 
-        return callable.Invoke(arguments);
+        return callable.Invoke(arguments, thisValue);
+    }
+
+    private static (object? Callee, object? ThisValue) ResolveCallee(object? calleeExpression, Environment environment)
+    {
+        if (calleeExpression is Cons { Head: Symbol { } head } propertyCons && ReferenceEquals(head, JsSymbols.GetProperty))
+        {
+            var targetExpression = propertyCons.Rest.Head;
+            var propertyName = propertyCons.Rest.Rest.Head as string
+                ?? throw new InvalidOperationException("Property access requires a string name.");
+
+            var target = EvaluateExpression(targetExpression, environment);
+            if (target is IDictionary<string, object?> dictionary)
+            {
+                dictionary.TryGetValue(propertyName, out var value);
+                return (value, target);
+            }
+
+            throw new InvalidOperationException($"Cannot read property '{propertyName}' from value '{target}'.");
+        }
+
+        return (EvaluateExpression(calleeExpression, environment), null);
     }
 
     private static object EvaluateObjectLiteral(Cons cons, Environment environment)

@@ -92,4 +92,50 @@ public class EvaluatorTests
         var thisBinding = Assert.IsType<Dictionary<string, object?>>(result);
         Assert.Equal(42d, thisBinding["value"]);
     }
+
+    [Fact]
+    public void MethodClosuresCanReachThisViaCapturedReference()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let obj = {
+    value: 10,
+    makeIncrementer: function(step) {
+        let receiver = this; // capture the current method receiver for later use
+        return function(extra) {
+            return receiver.value + step + extra;
+        };
+    }
+};
+let inc = obj.makeIncrementer(5);
+inc(3);
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(18d, result);
+    }
+
+    [Fact]
+    public void DistinctMethodCallsProvideIndependentThisBindings()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let factory = {
+    create: function(number) {
+        return {
+            value: number,
+            read: function() { return this.value; } // rely on this binding when invoked as a method
+        };
+    }
+};
+let first = factory.create(7);
+let second = factory.create(8);
+first.read() + second.read();
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(15d, result);
+    }
 }

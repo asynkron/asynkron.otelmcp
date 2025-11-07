@@ -138,6 +138,63 @@ public class ParserTests
     }
 
     [Fact]
+    public void ParseLogicalOperatorsRespectPrecedence()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("let flag = true || false && true;");
+
+        var letStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Let, letStatement.Head);
+
+        var logicalOr = Assert.IsType<Cons>(letStatement.Rest.Rest.Head);
+        Assert.Equal(Symbol.Intern("||"), logicalOr.Head);
+        Assert.Equal(true, logicalOr.Rest.Head);
+
+        var logicalAnd = Assert.IsType<Cons>(logicalOr.Rest.Rest.Head);
+        Assert.Equal(Symbol.Intern("&&"), logicalAnd.Head);
+        Assert.Equal(false, logicalAnd.Rest.Head);
+        Assert.Equal(true, logicalAnd.Rest.Rest.Head);
+    }
+
+    [Fact]
+    public void ParseNullishCoalescingProducesOperatorSymbol()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("let value = null ?? 42;");
+
+        var letStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Let, letStatement.Head);
+
+        var coalesce = Assert.IsType<Cons>(letStatement.Rest.Rest.Head);
+        Assert.Equal(Symbol.Intern("??"), coalesce.Head);
+        Assert.Null(coalesce.Rest.Head);
+        Assert.Equal(42d, coalesce.Rest.Rest.Head);
+    }
+
+    [Fact]
+    public void ParseStrictEqualityOperators()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("let comparisons = 1 === 1; let others = 2 !== 3;");
+
+        var strictEqual = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Let, strictEqual.Head);
+
+        var equalityExpression = Assert.IsType<Cons>(strictEqual.Rest.Rest.Head);
+        Assert.Equal(Symbol.Intern("==="), equalityExpression.Head);
+        Assert.Equal(1d, equalityExpression.Rest.Head);
+        Assert.Equal(1d, equalityExpression.Rest.Rest.Head);
+
+        var strictNotEqualStatement = Assert.IsType<Cons>(program.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Let, strictNotEqualStatement.Head);
+
+        var inequalityExpression = Assert.IsType<Cons>(strictNotEqualStatement.Rest.Rest.Head);
+        Assert.Equal(Symbol.Intern("!=="), inequalityExpression.Head);
+        Assert.Equal(2d, inequalityExpression.Rest.Head);
+        Assert.Equal(3d, inequalityExpression.Rest.Rest.Head);
+    }
+
+    [Fact]
     public void ParseNewExpression()
     {
         var engine = new JsEngine();

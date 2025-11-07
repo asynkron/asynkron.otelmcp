@@ -89,6 +89,58 @@ alias + missing + values[2];
     }
 
     [Fact]
+    public void LogicalOperatorsShortCircuitAndReturnOperands()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let hits = 0;
+function record(value) {
+    hits = hits + 1;
+    return value; // propagate the input to observe operator return values
+}
+
+let andResult = false && record(1);
+let orResult = true || record(2);
+let coalesceResult = null ?? record(3);
+let coalesceNonNull = 0 ?? record(4);
+";
+
+        engine.Evaluate(source);
+
+        Assert.Equal(1d, engine.Evaluate("hits;")); // only the nullish coalescing branch invokes record
+        Assert.False(Assert.IsType<bool>(engine.Evaluate("andResult;")));
+        Assert.True(Assert.IsType<bool>(engine.Evaluate("orResult;")));
+        Assert.Equal(3d, engine.Evaluate("coalesceResult;"));
+        Assert.Equal(0d, engine.Evaluate("coalesceNonNull;"));
+    }
+
+    [Fact]
+    public void StrictEqualityRequiresMatchingTypes()
+    {
+        var engine = new JsEngine();
+        engine.SetGlobalFunction("getInt", _ => 1);
+
+        var source = @"
+let outcomes = [
+    1 === 1,
+    1 === ""1"",
+    1 !== 2,
+    null === null,
+    getInt() === 1
+];
+outcomes;
+";
+
+        engine.Evaluate(source);
+
+        Assert.True(Assert.IsType<bool>(engine.Evaluate("outcomes[0];")));
+        Assert.False(Assert.IsType<bool>(engine.Evaluate("outcomes[1];")));
+        Assert.True(Assert.IsType<bool>(engine.Evaluate("outcomes[2];")));
+        Assert.True(Assert.IsType<bool>(engine.Evaluate("outcomes[3];")));
+        Assert.True(Assert.IsType<bool>(engine.Evaluate("outcomes[4];")));
+    }
+
+    [Fact]
     public void VarDeclarationHoistsToFunctionScope()
     {
         var engine = new JsEngine();

@@ -795,9 +795,31 @@ internal static class Evaluator
         var leftExpression = cons.Rest.Head;
         var rightExpression = cons.Rest.Rest.Head;
         var left = EvaluateExpression(leftExpression, environment);
+        var operatorName = operatorSymbol.Name;
+
+        switch (operatorName)
+        {
+            case "&&":
+                return IsTruthy(left) ? EvaluateExpression(rightExpression, environment) : left;
+            case "||":
+                return IsTruthy(left) ? left : EvaluateExpression(rightExpression, environment);
+            case "??":
+                return left is null ? EvaluateExpression(rightExpression, environment) : left;
+            case "===":
+            {
+                var rightStrict = EvaluateExpression(rightExpression, environment);
+                return StrictEquals(left, rightStrict);
+            }
+            case "!==":
+            {
+                var rightStrict = EvaluateExpression(rightExpression, environment);
+                return !StrictEquals(left, rightStrict);
+            }
+        }
+
         var right = EvaluateExpression(rightExpression, environment);
 
-        return operatorSymbol.Name switch
+        return operatorName switch
         {
             "+" => Add(left, right),
             "-" => ToNumber(left) - ToNumber(right),
@@ -809,7 +831,7 @@ internal static class Evaluator
             ">=" => ToNumber(left) >= ToNumber(right),
             "<" => ToNumber(left) < ToNumber(right),
             "<=" => ToNumber(left) <= ToNumber(right),
-            _ => throw new InvalidOperationException($"Unsupported operator '{operatorSymbol.Name}'.")
+            _ => throw new InvalidOperationException($"Unsupported operator '{operatorName}'.")
         };
     }
 
@@ -843,9 +865,17 @@ internal static class Evaluator
     {
         null => 0,
         double d => d,
+        float f => f,
+        decimal m => (double)m,
         int i => i,
+        uint ui => ui,
         long l => l,
-        bool b => b ? 1 : 0,
+        ulong ul => ul,
+        short s => s,
+        ushort us => us,
+        byte b => b,
+        sbyte sb => sb,
+        bool flag => flag ? 1 : 0,
         string s when double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed) => parsed,
         _ => throw new InvalidOperationException($"Cannot convert value '{value}' to a number.")
     };
@@ -859,6 +889,45 @@ internal static class Evaluator
 
         return ToNumber(left) + ToNumber(right);
     }
+
+    private static bool StrictEquals(object? left, object? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            if (left is double d && double.IsNaN(d))
+            {
+                return false; // mirror JavaScript's NaN behaviour
+            }
+
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        if (IsNumeric(left) && IsNumeric(right))
+        {
+            var leftNumber = ToNumber(left);
+            var rightNumber = ToNumber(right);
+            if (double.IsNaN(leftNumber) || double.IsNaN(rightNumber))
+            {
+                return false;
+            }
+
+            return leftNumber.Equals(rightNumber);
+        }
+
+        if (left.GetType() != right.GetType())
+        {
+            return false;
+        }
+
+        return Equals(left, right);
+    }
+
+    private static bool IsNumeric(object? value) => value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
 
     private static string ToDisplayString(object? value) => value switch
     {

@@ -469,7 +469,7 @@ internal sealed class Parser
 
     private object? ParseAssignment()
     {
-        var expr = ParseEquality();
+        var expr = ParseLogicalOr();
 
         if (Match(TokenType.Equal))
         {
@@ -501,17 +501,80 @@ internal sealed class Parser
         return expr;
     }
 
+    private object? ParseLogicalOr()
+    {
+        var expr = ParseLogicalAnd();
+
+        while (Match(TokenType.PipePipe))
+        {
+            var right = ParseLogicalAnd();
+            expr = Cons.FromEnumerable(new object?[]
+            {
+                JsSymbols.Operator("||"),
+                expr,
+                right
+            });
+        }
+
+        return expr;
+    }
+
+    private object? ParseLogicalAnd()
+    {
+        var expr = ParseNullishCoalescing();
+
+        while (Match(TokenType.AmpAmp))
+        {
+            var right = ParseNullishCoalescing();
+            expr = Cons.FromEnumerable(new object?[]
+            {
+                JsSymbols.Operator("&&"),
+                expr,
+                right
+            });
+        }
+
+        return expr;
+    }
+
+    private object? ParseNullishCoalescing()
+    {
+        var expr = ParseEquality();
+
+        while (Match(TokenType.QuestionQuestion))
+        {
+            var right = ParseEquality();
+            expr = Cons.FromEnumerable(new object?[]
+            {
+                JsSymbols.Operator("??"),
+                expr,
+                right
+            });
+        }
+
+        return expr;
+    }
+
     private object? ParseEquality()
     {
         var expr = ParseComparison();
 
-        while (Match(TokenType.BangEqual, TokenType.EqualEqual))
+        while (Match(TokenType.BangEqual, TokenType.EqualEqual, TokenType.EqualEqualEqual, TokenType.BangEqualEqual))
         {
             var operatorToken = Previous();
             var right = ParseComparison();
+            var op = operatorToken.Type switch
+            {
+                TokenType.EqualEqual => "==",
+                TokenType.BangEqual => "!=",
+                TokenType.EqualEqualEqual => "===",
+                TokenType.BangEqualEqual => "!==",
+                _ => throw new InvalidOperationException("Unexpected equality operator.")
+            };
+
             expr = Cons.FromEnumerable(new object?[]
             {
-                JsSymbols.Operator(operatorToken.Type == TokenType.EqualEqual ? "==" : "!="),
+                JsSymbols.Operator(op),
                 expr,
                 right
             });

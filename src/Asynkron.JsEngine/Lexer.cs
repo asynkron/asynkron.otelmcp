@@ -101,6 +101,36 @@ internal sealed class Lexer
             case '*':
                 AddToken(TokenType.Star);
                 break;
+            case '&':
+                if (Match('&'))
+                {
+                    AddToken(TokenType.AmpAmp);
+                }
+                else
+                {
+                    throw new ParseException("Unexpected '&' without a matching '&'.");
+                }
+                break;
+            case '|':
+                if (Match('|'))
+                {
+                    AddToken(TokenType.PipePipe);
+                }
+                else
+                {
+                    throw new ParseException("Unexpected '|' without a matching '|'.");
+                }
+                break;
+            case '?':
+                if (Match('?'))
+                {
+                    AddToken(TokenType.QuestionQuestion);
+                }
+                else
+                {
+                    throw new ParseException("Unexpected '?' – conditional expressions are not yet supported.");
+                }
+                break;
             case '/':
                 if (Match('/'))
                 {
@@ -112,10 +142,24 @@ internal sealed class Lexer
                 }
                 break;
             case '!':
-                AddToken(Match('=') ? TokenType.BangEqual : TokenType.Bang);
+                if (Match('='))
+                {
+                    AddToken(Match('=') ? TokenType.BangEqualEqual : TokenType.BangEqual);
+                }
+                else
+                {
+                    AddToken(TokenType.Bang);
+                }
                 break;
             case '=':
-                AddToken(Match('=') ? TokenType.EqualEqual : TokenType.Equal);
+                if (Match('='))
+                {
+                    AddToken(Match('=') ? TokenType.EqualEqualEqual : TokenType.EqualEqual);
+                }
+                else
+                {
+                    AddToken(TokenType.Equal);
+                }
                 break;
             case '>':
                 AddToken(Match('=') ? TokenType.GreaterEqual : TokenType.Greater);

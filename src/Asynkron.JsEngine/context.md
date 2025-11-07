@@ -10,6 +10,7 @@ Key components:
 - Array literals lower into `JsArray` instances so indexed reads/writes, sparse growth, and `length` property lookups behave in a JavaScript-like manner alongside existing object/property support.
 - Variable declarations cover `let`, `var`, and `const`; the evaluator hoists `var` bindings into the nearest function/global scope and blocks reassignment for `const` values.
 - Control flow keywords such as `if`, `while`, `do/while`, `for`, `switch`, and `try/catch/finally` are parsed into dedicated S-expressions so the evaluator can execute branching logic, handle loop-scoped variables, respect `break`/`continue` statements (including switch fallthrough and scoped breaks), and propagate exceptions via explicit `throw` forms.
+- Logical operators (`&&`, `||`, `??`) short-circuit in the evaluator and surface their operand values, while equality operators cover both loose (`==`, `!=`) and strict (`===`, `!==`) comparisons.
 - `JsObject` – Lightweight dictionary that tracks a `__proto__` chain so property lookups can traverse prototypes.
 - `JsEngine` – Public façade that exposes parsing and evaluation helpers and allows custom globals to be registered.
 

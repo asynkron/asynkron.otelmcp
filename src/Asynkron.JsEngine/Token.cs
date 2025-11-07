@@ -26,6 +26,7 @@ internal enum TokenType
     Number,
     String,
     Let,
+    Class,
     Function,
     Return,
     This,

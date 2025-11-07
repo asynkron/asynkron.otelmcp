@@ -7,6 +7,7 @@ internal sealed class Lexer
     private static readonly Dictionary<string, TokenType> Keywords = new(StringComparer.Ordinal)
     {
         ["let"] = TokenType.Let,
+        ["class"] = TokenType.Class,
         ["function"] = TokenType.Function,
         ["return"] = TokenType.Return,
         ["this"] = TokenType.This,

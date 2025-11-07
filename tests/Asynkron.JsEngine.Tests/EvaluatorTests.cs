@@ -190,4 +190,45 @@ first.read() + second.read();
 
         Assert.Equal(15d, result);
     }
+
+    [Fact]
+    public void ClassDeclarationSupportsConstructorsAndMethods()
+    {
+        var engine = new JsEngine();
+        var source = @"
+class Counter {
+    constructor(start) {
+        this.value = start;
+    }
+
+    increment() {
+        this.value = this.value + 1; // mutate state then return it for verification
+        return this.value;
+    }
+}
+let instance = new Counter(5);
+instance.increment();
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(6d, result);
+    }
+
+    [Fact]
+    public void ClassWithoutExplicitConstructorFallsBackToDefault()
+    {
+        var engine = new JsEngine();
+        var source = @"
+class Widget {
+    describe() { return ""widget""; }
+}
+let widget = new Widget();
+Widget.prototype.constructor == Widget;
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.True(Assert.IsType<bool>(result));
+    }
 }

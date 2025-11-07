@@ -104,4 +104,34 @@ public class ParserTests
         Assert.Equal(1d, newExpression.Rest.Rest.Head);
         Assert.Equal(2d, newExpression.Rest.Rest.Rest.Head);
     }
+
+    [Fact]
+    public void ParseClassDeclarationProducesConstructorAndMethods()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("class Counter { constructor(start) { this.value = start; } increment() { return this.value; } }");
+
+        var classStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Class, classStatement.Head);
+        Assert.Equal(Symbol.Intern("Counter"), classStatement.Rest.Head);
+
+        var constructor = Assert.IsType<Cons>(classStatement.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Lambda, constructor.Head);
+        Assert.Equal(Symbol.Intern("Counter"), constructor.Rest.Head); // constructor keeps the class name for recursion
+
+        var constructorParameters = Assert.IsType<Cons>(constructor.Rest.Rest.Head);
+        Assert.Equal(Symbol.Intern("start"), constructorParameters.Head);
+
+        var constructorBody = Assert.IsType<Cons>(constructor.Rest.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Block, constructorBody.Head);
+
+        var methods = Assert.IsType<Cons>(classStatement.Rest.Rest.Rest.Head);
+        var methodEntry = Assert.IsType<Cons>(methods.Head);
+        Assert.Same(JsSymbols.Method, methodEntry.Head);
+        Assert.Equal("increment", methodEntry.Rest.Head);
+
+        var methodLambda = Assert.IsType<Cons>(methodEntry.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Lambda, methodLambda.Head);
+        Assert.Null(methodLambda.Rest.Head); // class methods stay anonymous like standard method syntax
+    }
 }

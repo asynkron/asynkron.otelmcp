@@ -28,6 +28,11 @@ internal sealed class Parser
             return ParseFunctionDeclaration();
         }
 
+        if (Match(TokenType.Class))
+        {
+            return ParseClassDeclaration();
+        }
+
         if (Match(TokenType.Let))
         {
             return ParseVariableDeclaration();
@@ -46,6 +51,53 @@ internal sealed class Parser
         var body = ParseBlock();
 
         return Cons.FromEnumerable(new object?[] { JsSymbols.Function, name, parameters, body });
+    }
+
+    private object ParseClassDeclaration()
+    {
+        var nameToken = Consume(TokenType.Identifier, "Expected class name.");
+        var name = Symbol.Intern(nameToken.Lexeme);
+        Consume(TokenType.LeftBrace, "Expected '{' after class name.");
+
+        Cons? constructor = null;
+        var methods = new List<object?>();
+
+        while (!Check(TokenType.RightBrace))
+        {
+            var methodNameToken = Consume(TokenType.Identifier, "Expected method name in class body.");
+            var methodName = methodNameToken.Lexeme;
+            Consume(TokenType.LeftParen, "Expected '(' after method name.");
+            var parameters = ParseParameterList();
+            Consume(TokenType.RightParen, "Expected ')' after method parameters.");
+            var body = ParseBlock();
+
+            var lambdaName = string.Equals(methodName, "constructor", StringComparison.Ordinal)
+                ? name
+                : null;
+            var lambda = Cons.FromEnumerable(new object?[] { JsSymbols.Lambda, lambdaName, parameters, body });
+
+            if (string.Equals(methodName, "constructor", StringComparison.Ordinal))
+            {
+                if (constructor is not null)
+                {
+                    throw new ParseException("Class cannot declare multiple constructors.");
+                }
+
+                constructor = lambda;
+            }
+            else
+            {
+                methods.Add(Cons.FromEnumerable(new object?[] { JsSymbols.Method, methodName, lambda }));
+            }
+        }
+
+        Consume(TokenType.RightBrace, "Expected '}' after class body.");
+        Match(TokenType.Semicolon); // allow optional semicolon terminator
+
+        constructor ??= CreateDefaultConstructor(name);
+        var methodList = Cons.FromEnumerable(methods);
+
+        return Cons.FromEnumerable(new object?[] { JsSymbols.Class, name, constructor, methodList });
     }
 
     private Cons ParseParameterList()
@@ -420,6 +472,12 @@ internal sealed class Parser
         var nameToken = Consume(TokenType.Identifier, "Expected property name after '.'.");
         var propertyName = nameToken.Lexeme;
         return Cons.FromEnumerable(new object?[] { JsSymbols.GetProperty, target, propertyName });
+    }
+
+    private static Cons CreateDefaultConstructor(Symbol name)
+    {
+        var body = Cons.FromEnumerable(new object?[] { JsSymbols.Block });
+        return Cons.FromEnumerable(new object?[] { JsSymbols.Lambda, name, Cons.Empty, body });
     }
 
     private bool Match(params TokenType[] types)

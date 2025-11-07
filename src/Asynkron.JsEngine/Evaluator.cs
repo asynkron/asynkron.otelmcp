@@ -59,6 +59,11 @@ internal static class Evaluator
             return EvaluateFunctionDeclaration(cons, environment);
         }
 
+        if (ReferenceEquals(symbol, JsSymbols.Class))
+        {
+            return EvaluateClass(cons, environment);
+        }
+
         if (ReferenceEquals(symbol, JsSymbols.Return))
         {
             return EvaluateReturn(cons, environment);
@@ -95,6 +100,53 @@ internal static class Evaluator
         var function = new JsFunction(name, ToSymbolList(parameters), body, environment);
         environment.Define(name, function);
         return function;
+    }
+
+    private static object? EvaluateClass(Cons cons, Environment environment)
+    {
+        var name = ExpectSymbol(cons.Rest.Head, "Expected class name symbol.");
+        var constructorExpression = cons.Rest.Rest.Head;
+        var methodsList = ExpectCons(cons.Rest.Rest.Rest.Head, "Expected class body list.");
+
+        var constructorValue = EvaluateExpression(constructorExpression, environment);
+        if (constructorValue is not JsFunction constructor)
+        {
+            throw new InvalidOperationException("Class constructor must be a function.");
+        }
+
+        environment.Define(name, constructor);
+
+        if (!constructor.TryGetProperty("prototype", out var prototypeValue) || prototypeValue is not JsObject prototype)
+        {
+            prototype = new JsObject();
+            constructor.SetProperty("prototype", prototype);
+        }
+
+        prototype.SetProperty("constructor", constructor);
+
+        foreach (var methodExpression in methodsList)
+        {
+            var methodCons = ExpectCons(methodExpression, "Expected method definition.");
+            var tag = ExpectSymbol(methodCons.Head, "Expected method tag.");
+            if (!ReferenceEquals(tag, JsSymbols.Method))
+            {
+                throw new InvalidOperationException("Invalid entry in class body.");
+            }
+
+            var methodName = methodCons.Rest.Head as string
+                ?? throw new InvalidOperationException("Expected method name.");
+            var functionExpression = methodCons.Rest.Rest.Head;
+            var methodValue = EvaluateExpression(functionExpression, environment);
+
+            if (methodValue is not IJsCallable)
+            {
+                throw new InvalidOperationException($"Class method '{methodName}' must be callable.");
+            }
+
+            prototype.SetProperty(methodName, methodValue);
+        }
+
+        return constructor;
     }
 
     private static object? EvaluateReturn(Cons cons, Environment environment)

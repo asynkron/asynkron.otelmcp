@@ -127,6 +127,38 @@ internal sealed class Parser
 
     private object ParseStatement()
     {
+        if (Match(TokenType.If))
+        {
+            return ParseIfStatement();
+        }
+
+        if (Match(TokenType.For))
+        {
+            return ParseForStatement();
+        }
+
+        if (Match(TokenType.While))
+        {
+            return ParseWhileStatement();
+        }
+
+        if (Match(TokenType.Do))
+        {
+            return ParseDoWhileStatement();
+        }
+
+        if (Match(TokenType.Break))
+        {
+            Consume(TokenType.Semicolon, "Expected ';' after break statement.");
+            return Cons.FromEnumerable(new object?[] { JsSymbols.Break });
+        }
+
+        if (Match(TokenType.Continue))
+        {
+            Consume(TokenType.Semicolon, "Expected ';' after continue statement.");
+            return Cons.FromEnumerable(new object?[] { JsSymbols.Continue });
+        }
+
         if (Match(TokenType.Return))
         {
             return ParseReturnStatement();
@@ -138,6 +170,79 @@ internal sealed class Parser
         }
 
         return ParseExpressionStatement();
+    }
+
+    private object ParseIfStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'if'.");
+        var condition = ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after if condition.");
+        var thenBranch = ParseStatement();
+        object? elseBranch = null;
+        if (Match(TokenType.Else))
+        {
+            elseBranch = ParseStatement();
+        }
+
+        return Cons.FromEnumerable(new object?[] { JsSymbols.If, condition, thenBranch, elseBranch });
+    }
+
+    private object ParseWhileStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'while'.");
+        var condition = ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after while condition.");
+        var body = ParseStatement();
+        return Cons.FromEnumerable(new object?[] { JsSymbols.While, condition, body });
+    }
+
+    private object ParseDoWhileStatement()
+    {
+        var body = ParseStatement();
+        Consume(TokenType.While, "Expected 'while' after do-while body.");
+        Consume(TokenType.LeftParen, "Expected '(' after 'while'.");
+        var condition = ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after do-while condition.");
+        Consume(TokenType.Semicolon, "Expected ';' after do-while statement.");
+        return Cons.FromEnumerable(new object?[] { JsSymbols.DoWhile, condition, body });
+    }
+
+    private object ParseForStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'for'.");
+
+        object? initializer = null;
+        if (Match(TokenType.Semicolon))
+        {
+            initializer = null;
+        }
+        else if (Match(TokenType.Let))
+        {
+            initializer = ParseVariableDeclaration();
+        }
+        else
+        {
+            initializer = ParseExpressionStatement();
+        }
+
+        object? condition = null;
+        if (!Check(TokenType.Semicolon))
+        {
+            condition = ParseExpression();
+        }
+
+        Consume(TokenType.Semicolon, "Expected ';' after for loop condition.");
+
+        object? increment = null;
+        if (!Check(TokenType.RightParen))
+        {
+            increment = ParseExpression();
+        }
+
+        Consume(TokenType.RightParen, "Expected ')' after for clauses.");
+        var body = ParseStatement();
+
+        return Cons.FromEnumerable(new object?[] { JsSymbols.For, initializer, condition, increment, body });
     }
 
     private object ParseReturnStatement()

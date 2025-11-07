@@ -231,4 +231,80 @@ Widget.prototype.constructor == Widget;
 
         Assert.True(Assert.IsType<bool>(result));
     }
+
+    [Fact]
+    public void EvaluateIfElseAndBlockScopes()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let value = 0;
+if (false) {
+    value = 1;
+} else {
+    value = 2;
+}
+value;
+";
+
+        var result = engine.Evaluate(source);
+        Assert.Equal(2d, result);
+    }
+
+    [Fact]
+    public void EvaluateWhileLoopUpdatesValues()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let total = 0;
+let current = 1;
+while (current <= 3) {
+    total = total + current;
+    current = current + 1;
+}
+total;
+";
+
+        var result = engine.Evaluate(source);
+        Assert.Equal(6d, result);
+    }
+
+    [Fact]
+    public void EvaluateForLoopHonoursBreakAndContinue()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let sum = 0;
+for (let i = 0; i < 10; i = i + 1) {
+    if (i == 3) {
+        continue;
+    }
+
+    if (i == 5) {
+        break;
+    }
+
+    sum = sum + i;
+}
+sum;
+";
+
+        var result = engine.Evaluate(source);
+        Assert.Equal(7d, result); // adds 0 + 1 + 2 + 4 before breaking at 5
+    }
+
+    [Fact]
+    public void EvaluateDoWhileRunsBodyAtLeastOnce()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let attempts = 0;
+do {
+    attempts = attempts + 1;
+} while (false);
+attempts;
+";
+
+        var result = engine.Evaluate(source);
+        Assert.Equal(1d, result);
+    }
 }

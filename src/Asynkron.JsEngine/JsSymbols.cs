@@ -12,6 +12,12 @@ public static class JsSymbols
     public static readonly Symbol Block = Symbol.Intern("block");
     public static readonly Symbol Return = Symbol.Intern("return");
     public static readonly Symbol ExpressionStatement = Symbol.Intern("expr-stmt");
+    public static readonly Symbol If = Symbol.Intern("if");
+    public static readonly Symbol While = Symbol.Intern("while");
+    public static readonly Symbol DoWhile = Symbol.Intern("do-while");
+    public static readonly Symbol For = Symbol.Intern("for");
+    public static readonly Symbol Break = Symbol.Intern("break");
+    public static readonly Symbol Continue = Symbol.Intern("continue");
     public static readonly Symbol Assign = Symbol.Intern("assign");
     public static readonly Symbol Call = Symbol.Intern("call");
     public static readonly Symbol Negate = Symbol.Intern("negate");

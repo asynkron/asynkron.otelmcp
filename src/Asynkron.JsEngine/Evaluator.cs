@@ -64,6 +64,36 @@ internal static class Evaluator
             return EvaluateClass(cons, environment);
         }
 
+        if (ReferenceEquals(symbol, JsSymbols.If))
+        {
+            return EvaluateIf(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.For))
+        {
+            return EvaluateFor(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.While))
+        {
+            return EvaluateWhile(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.DoWhile))
+        {
+            return EvaluateDoWhile(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.Break))
+        {
+            throw new BreakSignal();
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.Continue))
+        {
+            throw new ContinueSignal();
+        }
+
         if (ReferenceEquals(symbol, JsSymbols.Return))
         {
             return EvaluateReturn(cons, environment);
@@ -81,6 +111,125 @@ internal static class Evaluator
         }
 
         return EvaluateExpression(cons, environment);
+    }
+
+    private static object? EvaluateIf(Cons cons, Environment environment)
+    {
+        var conditionExpression = cons.Rest.Head;
+        var thenBranch = cons.Rest.Rest.Head;
+        var elseBranch = cons.Rest.Rest.Rest.Head;
+
+        var condition = EvaluateExpression(conditionExpression, environment);
+        if (IsTruthy(condition))
+        {
+            return EvaluateStatement(thenBranch, environment);
+        }
+
+        if (elseBranch is not null)
+        {
+            return EvaluateStatement(elseBranch, environment);
+        }
+
+        return null;
+    }
+
+    private static object? EvaluateWhile(Cons cons, Environment environment)
+    {
+        var conditionExpression = cons.Rest.Head;
+        var body = cons.Rest.Rest.Head;
+
+        object? lastResult = null;
+        while (IsTruthy(EvaluateExpression(conditionExpression, environment)))
+        {
+            try
+            {
+                lastResult = EvaluateStatement(body, environment);
+            }
+            catch (ContinueSignal)
+            {
+                continue;
+            }
+            catch (BreakSignal)
+            {
+                break;
+            }
+        }
+
+        return lastResult;
+    }
+
+    private static object? EvaluateDoWhile(Cons cons, Environment environment)
+    {
+        var conditionExpression = cons.Rest.Head;
+        var body = cons.Rest.Rest.Head;
+
+        object? lastResult = null;
+        while (true)
+        {
+            try
+            {
+                lastResult = EvaluateStatement(body, environment);
+            }
+            catch (ContinueSignal)
+            {
+                // fall through to condition check for the next iteration
+            }
+            catch (BreakSignal)
+            {
+                break;
+            }
+
+            if (!IsTruthy(EvaluateExpression(conditionExpression, environment)))
+            {
+                break;
+            }
+        }
+
+        return lastResult;
+    }
+
+    private static object? EvaluateFor(Cons cons, Environment environment)
+    {
+        var initializer = cons.Rest.Head;
+        var conditionExpression = cons.Rest.Rest.Head;
+        var incrementExpression = cons.Rest.Rest.Rest.Head;
+        var body = cons.Rest.Rest.Rest.Rest.Head;
+
+        var loopEnvironment = new Environment(environment);
+
+        if (initializer is not null)
+        {
+            EvaluateStatement(initializer, loopEnvironment);
+        }
+
+        object? lastResult = null;
+        while (conditionExpression is null || IsTruthy(EvaluateExpression(conditionExpression, loopEnvironment)))
+        {
+            try
+            {
+                lastResult = EvaluateStatement(body, loopEnvironment);
+            }
+            catch (ContinueSignal)
+            {
+                if (incrementExpression is not null)
+                {
+                    EvaluateExpression(incrementExpression, loopEnvironment);
+                }
+
+                continue;
+            }
+            catch (BreakSignal)
+            {
+                break;
+            }
+
+            if (incrementExpression is not null)
+            {
+                EvaluateExpression(incrementExpression, loopEnvironment);
+            }
+        }
+
+        return lastResult;
     }
 
     private static object? EvaluateLet(Cons cons, Environment environment)

@@ -134,4 +134,36 @@ public class ParserTests
         Assert.Same(JsSymbols.Lambda, methodLambda.Head);
         Assert.Null(methodLambda.Rest.Head); // class methods stay anonymous like standard method syntax
     }
+
+    [Fact]
+    public void ParseIfAndLoopStatements()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("if (flag) x = 1; else x = 2; while (x < 10) { x = x + 1; } for (let i = 0; i < 3; i = i + 1) { continue; } do { break; } while (false);");
+
+        var ifStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.If, ifStatement.Head);
+        Assert.Equal(Symbol.Intern("flag"), ifStatement.Rest.Head);
+
+        var thenBranch = Assert.IsType<Cons>(ifStatement.Rest.Rest.Head);
+        Assert.Same(JsSymbols.ExpressionStatement, thenBranch.Head);
+
+        var elseBranch = Assert.IsType<Cons>(ifStatement.Rest.Rest.Rest.Head);
+        Assert.Same(JsSymbols.ExpressionStatement, elseBranch.Head);
+
+        var whileStatement = Assert.IsType<Cons>(program.Rest.Rest.Head);
+        Assert.Same(JsSymbols.While, whileStatement.Head);
+        Assert.Same(Symbol.Intern("x"), Assert.IsType<Cons>(whileStatement.Rest.Head).Rest.Head); // condition is ( < x 10 )
+
+        var forStatement = Assert.IsType<Cons>(program.Rest.Rest.Rest.Head);
+        Assert.Same(JsSymbols.For, forStatement.Head);
+        Assert.IsType<Cons>(forStatement.Rest.Head); // initializer is a let declaration
+        Assert.IsType<Cons>(forStatement.Rest.Rest.Head); // condition expression
+        Assert.IsType<Cons>(forStatement.Rest.Rest.Rest.Head); // increment expression
+        Assert.IsType<Cons>(forStatement.Rest.Rest.Rest.Rest.Head); // body block
+
+        var doWhileStatement = Assert.IsType<Cons>(program.Rest.Rest.Rest.Rest.Head);
+        Assert.Same(JsSymbols.DoWhile, doWhileStatement.Head);
+        Assert.Equal(false, doWhileStatement.Rest.Head);
+    }
 }

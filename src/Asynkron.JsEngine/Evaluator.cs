@@ -54,6 +54,16 @@ internal static class Evaluator
             return EvaluateLet(cons, environment);
         }
 
+        if (ReferenceEquals(symbol, JsSymbols.Var))
+        {
+            return EvaluateVar(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.Const))
+        {
+            return EvaluateConst(cons, environment);
+        }
+
         if (ReferenceEquals(symbol, JsSymbols.Function))
         {
             return EvaluateFunctionDeclaration(cons, environment);
@@ -72,6 +82,11 @@ internal static class Evaluator
         if (ReferenceEquals(symbol, JsSymbols.For))
         {
             return EvaluateFor(cons, environment);
+        }
+
+        if (ReferenceEquals(symbol, JsSymbols.Switch))
+        {
+            return EvaluateSwitch(cons, environment);
         }
 
         if (ReferenceEquals(symbol, JsSymbols.While))
@@ -232,12 +247,108 @@ internal static class Evaluator
         return lastResult;
     }
 
+    private static object? EvaluateSwitch(Cons cons, Environment environment)
+    {
+        var discriminantExpression = cons.Rest.Head;
+        var clauses = ExpectCons(cons.Rest.Rest.Head, "Expected switch clause list.");
+        var discriminant = EvaluateExpression(discriminantExpression, environment);
+        var hasMatched = false; // Once a clause matches, we keep executing subsequent clauses to model fallthrough.
+        object? result = null;
+
+        foreach (var clauseEntry in clauses)
+        {
+            var clause = ExpectCons(clauseEntry, "Expected switch clause.");
+            var tag = ExpectSymbol(clause.Head, "Expected switch clause tag.");
+
+            if (ReferenceEquals(tag, JsSymbols.Case))
+            {
+                var testExpression = clause.Rest.Head;
+                var body = ExpectCons(clause.Rest.Rest.Head, "Expected case body block.");
+
+                if (!hasMatched)
+                {
+                    var testValue = EvaluateExpression(testExpression, environment);
+                    hasMatched = Equals(discriminant, testValue);
+                }
+
+                if (hasMatched)
+                {
+                    try
+                    {
+                        result = ExecuteSwitchBody(body, environment, result);
+                    }
+                    catch (BreakSignal)
+                    {
+                        return result;
+                    }
+                }
+
+                continue;
+            }
+
+            if (ReferenceEquals(tag, JsSymbols.Default))
+            {
+                var body = ExpectCons(clause.Rest.Head, "Expected default body block.");
+
+                if (!hasMatched)
+                {
+                    hasMatched = true;
+                }
+
+                try
+                {
+                    result = ExecuteSwitchBody(body, environment, result);
+                }
+                catch (BreakSignal)
+                {
+                    return result;
+                }
+
+                continue;
+            }
+
+            throw new InvalidOperationException("Unknown switch clause.");
+        }
+
+        return result;
+    }
+
+    private static object? ExecuteSwitchBody(Cons body, Environment environment, object? currentResult)
+    {
+        var result = currentResult;
+        foreach (var statement in body.Rest)
+        {
+            result = EvaluateStatement(statement, environment);
+        }
+
+        return result;
+    }
+
     private static object? EvaluateLet(Cons cons, Environment environment)
     {
         var name = ExpectSymbol(cons.Rest.Head, "Expected identifier in let declaration.");
         var valueExpression = cons.Rest.Rest.Head;
         var value = EvaluateExpression(valueExpression, environment);
         environment.Define(name, value);
+        return value;
+    }
+
+    private static object? EvaluateVar(Cons cons, Environment environment)
+    {
+        var name = ExpectSymbol(cons.Rest.Head, "Expected identifier in var declaration.");
+        var initializer = cons.Rest.Rest.Head;
+        var hasInitializer = !ReferenceEquals(initializer, JsSymbols.Uninitialized);
+        var value = hasInitializer ? EvaluateExpression(initializer, environment) : null;
+        environment.DefineFunctionScoped(name, value, hasInitializer);
+        return environment.Get(name);
+    }
+
+    private static object? EvaluateConst(Cons cons, Environment environment)
+    {
+        var name = ExpectSymbol(cons.Rest.Head, "Expected identifier in const declaration.");
+        var valueExpression = cons.Rest.Rest.Head;
+        var value = EvaluateExpression(valueExpression, environment);
+        environment.Define(name, value, isConst: true);
         return value;
     }
 

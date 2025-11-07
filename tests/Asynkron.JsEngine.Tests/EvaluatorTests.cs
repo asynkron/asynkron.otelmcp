@@ -89,6 +89,34 @@ alias + missing + values[2];
     }
 
     [Fact]
+    public void VarDeclarationHoistsToFunctionScope()
+    {
+        var engine = new JsEngine();
+        var source = @"
+function sample() {
+    if (true) {
+        var hidden = 41;
+    }
+
+    return hidden + 1;
+}
+sample();
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal(42d, result);
+    }
+
+    [Fact]
+    public void ConstAssignmentThrows()
+    {
+        var engine = new JsEngine();
+
+        Assert.Throws<InvalidOperationException>(() => engine.Evaluate("const fixed = 1; fixed = 2;"));
+    }
+
+    [Fact]
     public void MethodInvocationBindsThis()
     {
         var engine = new JsEngine();
@@ -322,6 +350,54 @@ sum;
 
         var result = engine.Evaluate(source);
         Assert.Equal(7d, result); // adds 0 + 1 + 2 + 4 before breaking at 5
+    }
+
+    [Fact]
+    public void SwitchStatementSupportsFallthrough()
+    {
+        var engine = new JsEngine();
+        var source = @"
+function describe(value) {
+    switch (value) {
+        case 1:
+            return ""one"";
+        case 2:
+        case 3:
+            return ""few"";
+        default:
+            return ""many"";
+    }
+}
+describe(3);
+";
+
+        var result = engine.Evaluate(source);
+
+        Assert.Equal("few", result);
+    }
+
+    [Fact]
+    public void SwitchBreakRemainsInsideLoop()
+    {
+        var engine = new JsEngine();
+        var source = @"
+let total = 0;
+for (let i = 0; i < 3; i = i + 1) {
+    switch (i) {
+        case 1:
+            total = total + 10;
+            break;
+        default:
+            total = total + 1;
+    }
+}
+total;
+";
+
+        var result = engine.Evaluate(source);
+
+        // Ensure the break only exits the switch and not the outer loop.
+        Assert.Equal(12d, result);
     }
 
     [Fact]

@@ -5,7 +5,7 @@ namespace Asynkron.JsEngine;
 /// </summary>
 public sealed class JsEngine
 {
-    private readonly Environment _global = new();
+    private readonly Environment _global = new(isFunctionScope: true);
 
     /// <summary>
     /// Parses JavaScript source code into an S-expression representation.

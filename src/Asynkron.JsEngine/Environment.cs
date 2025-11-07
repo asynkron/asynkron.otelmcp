@@ -2,24 +2,56 @@ namespace Asynkron.JsEngine;
 
 internal sealed class Environment
 {
-    private readonly Dictionary<Symbol, object?> _values = new();
-    private readonly Environment? _enclosing;
-
-    public Environment(Environment? enclosing = null)
+    private sealed class Binding
     {
-        _enclosing = enclosing;
+        public Binding(object? value, bool isConst)
+        {
+            Value = value;
+            IsConst = isConst;
+        }
+
+        public object? Value { get; set; }
+
+        public bool IsConst { get; }
     }
 
-    public void Define(Symbol name, object? value)
+    private readonly Dictionary<Symbol, Binding> _values = new();
+    private readonly Environment? _enclosing;
+    private readonly bool _isFunctionScope;
+
+    public Environment(Environment? enclosing = null, bool isFunctionScope = false)
     {
-        _values[name] = value;
+        _enclosing = enclosing;
+        _isFunctionScope = isFunctionScope;
+    }
+
+    public void Define(Symbol name, object? value, bool isConst = false)
+    {
+        _values[name] = new Binding(value, isConst);
+    }
+
+    public void DefineFunctionScoped(Symbol name, object? value, bool hasInitializer)
+    {
+        // `var` declarations are hoisted to the nearest function/global scope, so we skip block environments here.
+        var scope = GetFunctionScope();
+        if (scope._values.TryGetValue(name, out var existing))
+        {
+            if (hasInitializer)
+            {
+                existing.Value = value;
+            }
+
+            return;
+        }
+
+        scope._values[name] = new Binding(value, isConst: false);
     }
 
     public object? Get(Symbol name)
     {
-        if (_values.TryGetValue(name, out var value))
+        if (_values.TryGetValue(name, out var binding))
         {
-            return value;
+            return binding.Value;
         }
 
         if (_enclosing is not null)
@@ -32,9 +64,14 @@ internal sealed class Environment
 
     public void Assign(Symbol name, object? value)
     {
-        if (_values.ContainsKey(name))
+        if (_values.TryGetValue(name, out var binding))
         {
-            _values[name] = value;
+            if (binding.IsConst)
+            {
+                throw new InvalidOperationException($"Cannot reassign constant '{name.Name}'.");
+            }
+
+            binding.Value = value;
             return;
         }
 
@@ -45,5 +82,17 @@ internal sealed class Environment
         }
 
         throw new InvalidOperationException($"Undefined symbol '{name.Name}'.");
+    }
+
+    private Environment GetFunctionScope()
+    {
+        var current = this;
+        while (!current._isFunctionScope)
+        {
+            current = current._enclosing
+                ?? throw new InvalidOperationException("Unable to locate function scope for var declaration.");
+        }
+
+        return current;
     }
 }

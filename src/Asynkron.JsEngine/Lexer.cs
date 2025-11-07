@@ -7,8 +7,13 @@ internal sealed class Lexer
     private static readonly Dictionary<string, TokenType> Keywords = new(StringComparer.Ordinal)
     {
         ["let"] = TokenType.Let,
+        ["var"] = TokenType.Var,
+        ["const"] = TokenType.Const,
         ["class"] = TokenType.Class,
         ["function"] = TokenType.Function,
+        ["switch"] = TokenType.Switch,
+        ["case"] = TokenType.Case,
+        ["default"] = TokenType.Default,
         ["if"] = TokenType.If,
         ["else"] = TokenType.Else,
         ["for"] = TokenType.For,

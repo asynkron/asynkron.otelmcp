@@ -26,7 +26,7 @@ internal sealed class JsFunction : IJsCallable
             throw new InvalidOperationException($"Function expected {_parameters.Count} arguments but received {arguments.Count}.");
         }
 
-        var environment = new Environment(_closure);
+        var environment = new Environment(_closure, isFunctionScope: true);
         for (var i = 0; i < _parameters.Count; i++)
         {
             environment.Define(_parameters[i], arguments[i]);

@@ -26,6 +26,30 @@ public class ParserTests
     }
 
     [Fact]
+    public void ParseVarDeclarationWithoutInitializerUsesSentinel()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("var counter; counter;");
+
+        var varStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Var, varStatement.Head);
+        Assert.Equal(Symbol.Intern("counter"), varStatement.Rest.Head);
+        Assert.Same(JsSymbols.Uninitialized, varStatement.Rest.Rest.Head); // Evaluator fills this in with null later on.
+    }
+
+    [Fact]
+    public void ParseConstDeclarationProducesConstSymbol()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("const answer = 42; answer;");
+
+        var constStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Const, constStatement.Head);
+        Assert.Equal(Symbol.Intern("answer"), constStatement.Rest.Head);
+        Assert.Equal(42d, constStatement.Rest.Rest.Head);
+    }
+
+    [Fact]
     public void ParseObjectLiteralAndPropertyAccess()
     {
         var engine = new JsEngine();
@@ -163,6 +187,35 @@ public class ParserTests
         var methodLambda = Assert.IsType<Cons>(methodEntry.Rest.Rest.Head);
         Assert.Same(JsSymbols.Lambda, methodLambda.Head);
         Assert.Null(methodLambda.Rest.Head); // class methods stay anonymous like standard method syntax
+    }
+
+    [Fact]
+    public void ParseSwitchStatementKeepsClauseOrder()
+    {
+        var engine = new JsEngine();
+        var program = engine.Parse("switch (value) { case 1: foo(); case 2: break; default: bar(); }");
+
+        var switchStatement = Assert.IsType<Cons>(program.Rest.Head);
+        Assert.Same(JsSymbols.Switch, switchStatement.Head);
+        Assert.Equal(Symbol.Intern("value"), switchStatement.Rest.Head);
+
+        var clauses = Assert.IsType<Cons>(switchStatement.Rest.Rest.Head);
+        var firstClause = Assert.IsType<Cons>(clauses.Head);
+        Assert.Same(JsSymbols.Case, firstClause.Head);
+        Assert.Equal(1d, firstClause.Rest.Head);
+        var firstBody = Assert.IsType<Cons>(firstClause.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Block, firstBody.Head);
+
+        var secondClause = Assert.IsType<Cons>(clauses.Rest.Head);
+        Assert.Same(JsSymbols.Case, secondClause.Head);
+        Assert.Equal(2d, secondClause.Rest.Head);
+        var secondBody = Assert.IsType<Cons>(secondClause.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Block, secondBody.Head);
+
+        var thirdClause = Assert.IsType<Cons>(clauses.Rest.Rest.Head);
+        Assert.Same(JsSymbols.Default, thirdClause.Head);
+        var defaultBody = Assert.IsType<Cons>(thirdClause.Rest.Head);
+        Assert.Same(JsSymbols.Block, defaultBody.Head);
     }
 
     [Fact]

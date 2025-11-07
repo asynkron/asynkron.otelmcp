@@ -35,7 +35,17 @@ internal sealed class Parser
 
         if (Match(TokenType.Let))
         {
-            return ParseVariableDeclaration();
+            return ParseVariableDeclaration(TokenType.Let);
+        }
+
+        if (Match(TokenType.Var))
+        {
+            return ParseVariableDeclaration(TokenType.Var);
+        }
+
+        if (Match(TokenType.Const))
+        {
+            return ParseVariableDeclaration(TokenType.Const);
         }
 
         return ParseStatement();
@@ -115,18 +125,58 @@ internal sealed class Parser
         return Cons.FromEnumerable(parameters);
     }
 
-    private object ParseVariableDeclaration()
+    private object ParseVariableDeclaration(TokenType kind)
     {
-        var nameToken = Consume(TokenType.Identifier, "Expected variable name after 'let'.");
+        var keyword = kind switch
+        {
+            TokenType.Let => "let",
+            TokenType.Var => "var",
+            TokenType.Const => "const",
+            _ => throw new InvalidOperationException("Unsupported variable declaration keyword.")
+        };
+
+        var nameToken = Consume(TokenType.Identifier, $"Expected variable name after '{keyword}'.");
         var name = Symbol.Intern(nameToken.Lexeme);
-        Consume(TokenType.Equal, "Expected '=' after variable name.");
-        var initializer = ParseExpression();
+        object? initializer;
+
+        if (Match(TokenType.Equal))
+        {
+            initializer = ParseExpression();
+        }
+        else
+        {
+            if (kind == TokenType.Const)
+            {
+                throw new ParseException("Const declarations require an initializer.");
+            }
+
+            if (kind == TokenType.Let)
+            {
+                throw new ParseException("Let declarations require an initializer in this interpreter.");
+            }
+
+            initializer = JsSymbols.Uninitialized;
+        }
+
         Consume(TokenType.Semicolon, "Expected ';' after variable declaration.");
-        return Cons.FromEnumerable(new object?[] { JsSymbols.Let, name, initializer });
+        var tag = kind switch
+        {
+            TokenType.Let => JsSymbols.Let,
+            TokenType.Var => JsSymbols.Var,
+            TokenType.Const => JsSymbols.Const,
+            _ => throw new InvalidOperationException("Unsupported variable declaration keyword.")
+        };
+
+        return Cons.FromEnumerable(new object?[] { tag, name, initializer });
     }
 
     private object ParseStatement()
     {
+        if (Match(TokenType.Switch))
+        {
+            return ParseSwitchStatement();
+        }
+
         if (Match(TokenType.If))
         {
             return ParseIfStatement();
@@ -170,6 +220,71 @@ internal sealed class Parser
         }
 
         return ParseExpressionStatement();
+    }
+
+    private object ParseSwitchStatement()
+    {
+        Consume(TokenType.LeftParen, "Expected '(' after 'switch'.");
+        var discriminant = ParseExpression();
+        Consume(TokenType.RightParen, "Expected ')' after switch expression.");
+        Consume(TokenType.LeftBrace, "Expected '{' to begin switch body.");
+
+        var clauses = new List<object?>();
+        var seenDefault = false;
+
+        while (!Check(TokenType.RightBrace) && !Check(TokenType.Eof))
+        {
+            if (Match(TokenType.Case))
+            {
+                var test = ParseExpression();
+                Consume(TokenType.Colon, "Expected ':' after case expression.");
+                clauses.Add(Cons.FromEnumerable(new object?[]
+                {
+                    JsSymbols.Case,
+                    test,
+                    ParseSwitchClauseStatements()
+                }));
+                continue;
+            }
+
+            if (Match(TokenType.Default))
+            {
+                if (seenDefault)
+                {
+                    throw new ParseException("Switch statement can only contain one default clause.");
+                }
+
+                seenDefault = true;
+                Consume(TokenType.Colon, "Expected ':' after default keyword.");
+                clauses.Add(Cons.FromEnumerable(new object?[]
+                {
+                    JsSymbols.Default,
+                    ParseSwitchClauseStatements()
+                }));
+                continue;
+            }
+
+            throw new ParseException("Unexpected token in switch body.");
+        }
+
+        Consume(TokenType.RightBrace, "Expected '}' after switch body.");
+        return Cons.FromEnumerable(new object?[]
+        {
+            JsSymbols.Switch,
+            discriminant,
+            Cons.FromEnumerable(clauses)
+        });
+    }
+
+    private Cons ParseSwitchClauseStatements()
+    {
+        var statements = new List<object?> { JsSymbols.Block };
+        while (!Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.RightBrace) && !Check(TokenType.Eof))
+        {
+            statements.Add(ParseDeclaration());
+        }
+
+        return Cons.FromEnumerable(statements);
     }
 
     private object ParseIfStatement()
@@ -218,7 +333,15 @@ internal sealed class Parser
         }
         else if (Match(TokenType.Let))
         {
-            initializer = ParseVariableDeclaration();
+            initializer = ParseVariableDeclaration(TokenType.Let);
+        }
+        else if (Match(TokenType.Var))
+        {
+            initializer = ParseVariableDeclaration(TokenType.Var);
+        }
+        else if (Match(TokenType.Const))
+        {
+            initializer = ParseVariableDeclaration(TokenType.Const);
         }
         else
         {

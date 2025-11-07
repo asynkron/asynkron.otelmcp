@@ -7,6 +7,8 @@ public static class JsSymbols
 {
     public static readonly Symbol Program = Symbol.Intern("program");
     public static readonly Symbol Let = Symbol.Intern("let");
+    public static readonly Symbol Var = Symbol.Intern("var");
+    public static readonly Symbol Const = Symbol.Intern("const");
     public static readonly Symbol Function = Symbol.Intern("function");
     public static readonly Symbol Class = Symbol.Intern("class");
     public static readonly Symbol Block = Symbol.Intern("block");
@@ -16,6 +18,9 @@ public static class JsSymbols
     public static readonly Symbol While = Symbol.Intern("while");
     public static readonly Symbol DoWhile = Symbol.Intern("do-while");
     public static readonly Symbol For = Symbol.Intern("for");
+    public static readonly Symbol Switch = Symbol.Intern("switch");
+    public static readonly Symbol Case = Symbol.Intern("case");
+    public static readonly Symbol Default = Symbol.Intern("default");
     public static readonly Symbol Break = Symbol.Intern("break");
     public static readonly Symbol Continue = Symbol.Intern("continue");
     public static readonly Symbol Assign = Symbol.Intern("assign");
@@ -33,6 +38,7 @@ public static class JsSymbols
     public static readonly Symbol SetIndex = Symbol.Intern("set-index");
     public static readonly Symbol This = Symbol.Intern("this");
     public static readonly Symbol New = Symbol.Intern("new");
+    public static readonly Symbol Uninitialized = Symbol.Intern("<uninitialized>");
 
     public static Symbol Operator(string op) => Symbol.Intern(op);
 }
